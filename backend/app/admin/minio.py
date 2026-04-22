@@ -38,6 +38,13 @@ class MinioClient:
         from datetime import timedelta
         return self._client.presigned_get_object(self._bucket, object_key, expires=timedelta(hours=expires_hours))
 
+    def download(self, object_key: str) -> bytes:
+        response = self._client.get_object(self._bucket, object_key)
+        data = response.read()
+        response.close()
+        response.release_conn()
+        return data
+
     def delete(self, object_key: str) -> None:
         self._client.remove_object(self._bucket, object_key)
 

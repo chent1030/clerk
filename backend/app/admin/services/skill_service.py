@@ -1,11 +1,11 @@
 import uuid
-from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.admin.models.skill import Skill, SkillStatus, SkillVisibleUser, SkillVisibility
+from app.admin.models.base import now_utc8
+from app.admin.models.skill import Skill, SkillStatus, SkillVisibility, SkillVisibleUser
 from app.admin.models.user import UserRole
 
 
@@ -178,7 +178,7 @@ async def review_skill(
     elif action == "reject":
         skill.status = SkillStatus.REJECTED
     skill.reviewed_by = reviewer_id
-    skill.reviewed_at = datetime.now(timezone.utc)
+    skill.reviewed_at = now_utc8()
     skill.review_comment = comment
     db.add(skill)
     await db.flush()

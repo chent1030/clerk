@@ -66,6 +66,24 @@ pnpm dev         # 开发服务器（端口 3000）
 
 **重要提示**：`pnpm check` 当前已损坏。请分别运行 `pnpm lint && pnpm typecheck`。
 
+### 管理面板
+
+在根目录运行：
+
+| 命令 | 描述 |
+|---------|-------------|
+| `make admin-install` | 安装管理面板依赖 |
+| `make admin-dev` | 启动管理面板开发服务器（端口 5173） |
+| `make admin-build` | 构建管理面板生产版本 |
+| `make db-migrate` | 运行数据库迁移（Alembic） |
+| `make db-seed` | 填充管理面板初始数据 |
+| `make infra-up` | 仅启动 PostgreSQL + MinIO（本地开发用） |
+| `make infra-down` | 停止 PostgreSQL + MinIO |
+
+管理面板通过 nginx 在 `/admin` 路径下统一访问。
+
+Docker 环境（开发/生产）包含 PostgreSQL（端口 5432）和 MinIO（端口 9000/9001）服务。
+
 ## 验证工作流
 
 提交更改前：

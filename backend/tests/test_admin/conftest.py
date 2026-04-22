@@ -124,6 +124,7 @@ def _make_mock_minio():
     m.build_skill_key.return_value = "skills/test/skill/file.zip"
     m.upload.return_value = None
     m.get_presigned_url.return_value = "http://minio.local/test-bucket/skills/test/skill/file.zip"
+    m.download.return_value = b"PK\x03\x04fake-zip-content"
     m.delete.return_value = None
     return m
 
@@ -148,7 +149,6 @@ async def client(db_session: AsyncSession, seed_data) -> AsyncGenerator[AsyncCli
 
     with patch("app.admin.deps.get_app_config", return_value=mock_config), \
          patch("app.admin.routers.auth.get_app_config", return_value=mock_config), \
-         patch("app.admin.routers.skills.get_app_config", return_value=mock_config), \
          patch("app.admin.routers.skills._get_minio_client", return_value=mock_minio):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:

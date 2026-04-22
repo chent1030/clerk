@@ -1,9 +1,8 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.admin.models.department import Department
 from app.admin.models.user import User

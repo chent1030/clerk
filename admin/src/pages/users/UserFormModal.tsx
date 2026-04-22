@@ -45,7 +45,7 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
             role: values.role,
           },
         });
-        message.success('User updated');
+        message.success('用户已更新');
       } else {
         await createUser.mutateAsync({
           username: values.username,
@@ -54,47 +54,47 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
           email: values.email,
           role: values.role,
         });
-        message.success('User created');
+        message.success('用户已创建');
       }
       onClose();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
-      message.error(err.response?.data?.detail || 'Operation failed');
+      message.error(err.response?.data?.detail || '操作失败');
     }
   };
 
   const roleOptions = isSuperAdmin
     ? [
-        { value: UserRole.USER, label: 'User' },
-        { value: UserRole.DEPT_ADMIN, label: 'Department Admin' },
-        { value: UserRole.SUPER_ADMIN, label: 'Super Admin' },
+        { value: UserRole.USER, label: '普通用户' },
+        { value: UserRole.DEPT_ADMIN, label: '部门管理员' },
+        { value: UserRole.SUPER_ADMIN, label: '超级管理员' },
       ]
-    : [{ value: UserRole.USER, label: 'User' }];
+    : [{ value: UserRole.USER, label: '普通用户' }];
 
   return (
     <Modal
-      title={isEdit ? 'Edit User' : 'New User'}
+      title={isEdit ? '编辑用户' : '新建用户'}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={createUser.isPending || updateUser.isPending}
     >
       <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Form.Item name="username" label="Username" rules={isEdit ? [] : [{ required: true, min: 2, max: 50 }]}>
+        <Form.Item name="username" label="用户名" rules={isEdit ? [] : [{ required: true, min: 2, max: 50 }]}>
           <Input disabled={isEdit} />
         </Form.Item>
         {!isEdit && (
-          <Form.Item name="password" label="Password" rules={[{ required: true, min: 6 }]}>
+          <Form.Item name="password" label="密码" rules={[{ required: true, min: 6 }]}>
             <Input.Password />
           </Form.Item>
         )}
-        <Form.Item name="display_name" label="Display Name" rules={[{ required: true }]}>
+        <Form.Item name="display_name" label="显示名" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
-        <Form.Item name="email" label="Email">
+        <Form.Item name="email" label="邮箱">
           <Input />
         </Form.Item>
-        <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+        <Form.Item name="role" label="角色" rules={[{ required: true }]}>
           <Select options={roleOptions} />
         </Form.Item>
       </Form>

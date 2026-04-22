@@ -13,10 +13,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(values.username, values.password);
-      message.success('Login successful');
+      message.success('登录成功');
       navigate('/admin/dashboard');
     } catch (e: any) {
-      message.error(e.response?.data?.detail || 'Login failed');
+      message.error(e.response?.data?.detail || '登录失败');
     } finally {
       setLoading(false);
     }
@@ -24,17 +24,17 @@ export default function LoginPage() {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-      <Card title="DeerFlow Admin" style={{ width: 400 }}>
+      <Card title="DeerFlow 管理端" style={{ width: 400 }}>
         <Form onFinish={onFinish}>
-          <Form.Item name="username" rules={[{ required: true, message: 'Please enter username' }]}>
-            <Input prefix={<UserOutlined />} placeholder="Username" />
+          <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+            <Input prefix={<UserOutlined />} placeholder="用户名" />
           </Form.Item>
-          <Form.Item name="password" rules={[{ required: true, message: 'Please enter password' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+          <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+            <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} block>
-              Login
+              登录
             </Button>
           </Form.Item>
         </Form>

@@ -47,36 +47,36 @@ export default function DepartmentForm({ open, department, parentId, onClose }: 
           id: department!.id,
           data: { name: values.name, parent_id: values.parent_id },
         });
-        message.success('Department updated');
+        message.success('部门已更新');
       } else {
         await createDept.mutateAsync({
           name: values.name,
           parent_id: values.parent_id,
         });
-        message.success('Department created');
+        message.success('部门已创建');
       }
       onClose();
     } catch (e: any) {
-      message.error(e.response?.data?.detail || 'Operation failed');
+      message.error(e.response?.data?.detail || '操作失败');
     }
   };
 
   return (
     <Modal
-      title={isEdit ? 'Edit Department' : 'New Department'}
+      title={isEdit ? '编辑部门' : '新建部门'}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={createDept.isPending || updateDept.isPending}
     >
       <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter department name' }]}>
+        <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入部门名称' }]}>
           <Input />
         </Form.Item>
-        <Form.Item name="parent_id" label="Parent Department">
+        <Form.Item name="parent_id" label="上级部门">
           <TreeSelect
             treeData={buildTreeSelectData(data?.departments || [])}
-            placeholder="None (top level)"
+            placeholder="无（顶级）"
             allowClear
             treeDefaultExpandAll
           />

@@ -33,19 +33,19 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 24 }}>Welcome, {user?.display_name || user?.username}</h2>
+      <h2 style={{ marginBottom: 24 }}>欢迎，{user?.display_name || user?.username}</h2>
       <Row gutter={16}>
         <Col span={6}>
-          <Card><Statistic title="Total Users" value={stats.users} prefix={<UserOutlined />} /></Card>
+          <Card><Statistic title="用户总数" value={stats.users} prefix={<UserOutlined />} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Departments" value={stats.departments} prefix={<ApartmentOutlined />} /></Card>
+          <Card><Statistic title="部门数" value={stats.departments} prefix={<ApartmentOutlined />} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Pending Skills" value={stats.pendingSkills} prefix={<AuditOutlined />} /></Card>
+          <Card><Statistic title="待审核 Skill" value={stats.pendingSkills} prefix={<AuditOutlined />} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Approved Skills" value={stats.approvedSkills} prefix={<RobotOutlined />} /></Card>
+          <Card><Statistic title="已发布 Skill" value={stats.approvedSkills} prefix={<RobotOutlined />} /></Card>
         </Col>
       </Row>
     </div>

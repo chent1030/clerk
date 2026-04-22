@@ -37,9 +37,17 @@ export async function getSkill(id: string): Promise<Skill> {
   return res.data;
 }
 
-export async function downloadSkill(id: string): Promise<{ download_url: string }> {
-  const res = await apiClient.get(`/api/admin/skills/${id}/download`);
-  return res.data;
+export async function downloadSkill(id: string, name?: string): Promise<void> {
+  const res = await apiClient.get(`/api/admin/skills/${id}/download`, { responseType: 'blob' });
+  const blob = new Blob([res.data], { type: 'application/zip' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name || id}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function updateSkill(id: string, data: { name?: string; description?: string; version?: string }): Promise<Skill> {

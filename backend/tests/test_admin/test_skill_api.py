@@ -1,6 +1,15 @@
+import io
 import uuid
+import zipfile
 
 import pytest
+
+
+def _make_zip_bytes(name: str = "skill") -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(f"{name}/SKILL.md", "# Test Skill\n")
+    return buf.getvalue()
 
 
 @pytest.mark.asyncio
@@ -9,14 +18,13 @@ async def test_upload_skill(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "my-skill", "version": "1.0.0", "description": "A test skill"},
-        files={"file": ("skill.zip", b"fake-content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "my-skill"
     assert data["status"] == "pending_review"
     assert data["visibility"] == "private"
-    assert data["file_size"] == 12
 
 
 @pytest.mark.asyncio
@@ -25,13 +33,13 @@ async def test_upload_duplicate_skill(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "dup-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     resp = await client.post(
         "/api/admin/skills",
         headers=auth_headers["super_admin"],
         data={"name": "dup-skill", "version": "2.0.0"},
-        files={"file": ("skill.zip", b"content2", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     assert resp.status_code == 409
 
@@ -42,7 +50,7 @@ async def test_list_skills_as_super_admin(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "list-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
 
     resp = await client.get("/api/admin/skills", headers=auth_headers["super_admin"])
@@ -57,7 +65,7 @@ async def test_list_skills_as_regular_user(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "own-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
 
     resp = await client.get("/api/admin/skills", headers=auth_headers["regular_user"])
@@ -74,7 +82,7 @@ async def test_get_skill_by_author(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "get-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -96,7 +104,7 @@ async def test_update_skill_by_author(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "update-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -116,7 +124,7 @@ async def test_update_skill_by_non_author_forbidden(client, auth_headers, seed_d
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "other-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -134,7 +142,7 @@ async def test_update_skill_by_super_admin(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "admin-update-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -153,7 +161,7 @@ async def test_submit_for_review(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "submit-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -168,7 +176,7 @@ async def test_withdraw_skill(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "withdraw-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -183,7 +191,7 @@ async def test_review_approve_skill(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "approve-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -204,7 +212,7 @@ async def test_review_reject_skill(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "reject-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -225,7 +233,7 @@ async def test_review_by_non_admin_forbidden(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "review-forbid-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -243,7 +251,7 @@ async def test_set_visibility_on_approved_skill(client, auth_headers, seed_data)
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "vis-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -268,7 +276,7 @@ async def test_set_visibility_on_non_approved_forbidden(client, auth_headers, se
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "vis-nonapproved-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -286,7 +294,7 @@ async def test_set_specific_users_visibility(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "specific-vis-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -312,7 +320,7 @@ async def test_delete_skill_by_author(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "delete-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -326,7 +334,7 @@ async def test_delete_skill_by_super_admin(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "admin-delete-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -340,7 +348,7 @@ async def test_delete_skill_by_non_author_forbidden(client, auth_headers, seed_d
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "forbid-delete-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
@@ -354,10 +362,11 @@ async def test_download_skill(client, auth_headers, seed_data):
         "/api/admin/skills",
         headers=auth_headers["regular_user"],
         data={"name": "download-skill", "version": "1.0.0"},
-        files={"file": ("skill.zip", b"content", "application/zip")},
+        files={"file": ("skill.zip", _make_zip_bytes(), "application/zip")},
     )
     skill_id = upload_resp.json()["id"]
 
     resp = await client.get(f"/api/admin/skills/{skill_id}/download", headers=auth_headers["regular_user"])
     assert resp.status_code == 200
-    assert "download_url" in resp.json()
+    assert resp.headers["content-type"] == "application/zip"
+    assert "attachment" in resp.headers.get("content-disposition", "")

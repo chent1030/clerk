@@ -19,7 +19,7 @@ export default function DepartmentPage() {
       title: (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {dept.name}
-          <span style={{ color: '#999', fontSize: 12 }}>({dept.member_count} members)</span>
+          <span style={{ color: '#999', fontSize: 12 }}>({dept.member_count} 人)</span>
           <Space size={4}>
             <Button
               type="link"
@@ -44,12 +44,12 @@ export default function DepartmentPage() {
               }}
             />
             <Popconfirm
-              title="Delete this department?"
-              description="Users in this department must be moved first."
+              title="确认删除该部门？"
+              description="请先转移该部门下的用户。"
               onConfirm={() => {
                 deleteDept.mutate(dept.id, {
-                  onSuccess: () => message.success('Department deleted'),
-                  onError: (e: any) => message.error(e.response?.data?.detail || 'Delete failed'),
+                  onSuccess: () => message.success('部门已删除'),
+                  onError: (e: any) => message.error(e.response?.data?.detail || '删除失败'),
                 });
               }}
             >
@@ -71,7 +71,7 @@ export default function DepartmentPage() {
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingDept(undefined); setParentId(undefined); setFormOpen(true); }}>
-          New Department
+          新建部门
         </Button>
       </div>
       <Card loading={isLoading}>
@@ -82,7 +82,7 @@ export default function DepartmentPage() {
             showLine
           />
         ) : (
-          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>No departments yet</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无部门</div>
         )}
       </Card>
       <DepartmentForm

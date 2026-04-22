@@ -1,23 +1,66 @@
+import io
+import os
+import shutil
 import uuid
+import zipfile
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.admin.deps import get_db, get_current_user, require_role
-from app.admin.models.skill import SkillStatus, SkillVisibility
-from app.admin.models.user import User, UserRole
-from app.admin.schemas.skill import SkillUpdate, SkillVisibilityUpdate, SkillReviewRequest, SkillResponse, SkillListResponse
-from app.admin.services import skill_service
+from app.admin.deps import get_current_user, get_db, require_role
 from app.admin.minio import MinioClient
-from deerflow.config import get_app_config
+from app.admin.models.skill import SkillStatus
+from app.admin.models.user import User, UserRole
+from app.admin.schemas.skill import SkillListResponse, SkillResponse, SkillReviewRequest, SkillUpdate, SkillVisibilityUpdate
+from app.admin.services import skill_service
 
 router = APIRouter(prefix="/api/admin/skills", tags=["admin-skills"])
+
+SKILLS_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "skills", "custom")
 
 
 def _get_minio_client() -> MinioClient:
     from app.gateway.app import get_app
     app = get_app()
     return app.state.minio_client
+
+
+def _extract_skill_to_custom(skill_name: str) -> None:
+    skills_dir = os.path.join(os.path.dirname(SKILLS_ROOT), "custom")
+    skill_path = os.path.join(skills_dir, skill_name)
+    if os.path.exists(skill_path):
+        shutil.rmtree(skill_path)
+
+
+def _extract_zip_to_skills(zip_data: bytes, skill_name: str) -> None:
+    skills_dir = SKILLS_ROOT
+    skill_path = os.path.join(skills_dir, skill_name)
+    if os.path.exists(skill_path):
+        shutil.rmtree(skill_path)
+    os.makedirs(skill_path, exist_ok=True)
+    with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+        entries = zf.infolist()
+        top_dirs = set()
+        for e in entries:
+            parts = e.filename.split("/")
+            if len(parts) > 1:
+                top_dirs.add(parts[0])
+        if len(top_dirs) == 1 and list(top_dirs)[0].strip() == skill_name:
+            for e in entries:
+                if e.is_dir():
+                    continue
+                rel = e.filename
+                parts = rel.split("/", 1)
+                if len(parts) > 1:
+                    target = os.path.join(skill_path, parts[1])
+                else:
+                    continue
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with zf.open(e) as src, open(target, "wb") as dst:
+                    dst.write(src.read())
+        else:
+            zf.extractall(skill_path)
 
 
 def _skill_to_response(skill, author_name=None, department_name=None, visible_user_ids=None) -> SkillResponse:
@@ -67,10 +110,12 @@ async def upload_skill(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    minio_client = _get_minio_client()
     file_data = await file.read()
+    if not zipfile.is_zipfile(io.BytesIO(file_data)):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a zip archive")
+    minio_client = _get_minio_client()
     skill_id = uuid.uuid4()
-    object_key = minio_client.build_skill_key(user.department_id, skill_id, file.filename or "upload")
+    object_key = minio_client.build_skill_key(user.department_id, skill_id, f"{name}.zip")
     minio_client.upload(object_key, file_data)
     skill = await skill_service.upload_skill(
         db, name, description, version, user.id, user.department_id,
@@ -98,10 +143,20 @@ async def download_skill(
     db: AsyncSession = Depends(get_db),
 ):
     skill = await skill_service.get_skill(db, skill_id)
-    await skill_service.check_skill_visibility(db, skill, user.id, user.role, user.department_id)
+    can_access = (
+        user.role == UserRole.SUPER_ADMIN
+        or user.id == skill.author_id
+        or user.department_id == skill.department_id
+    )
+    if not can_access:
+        await skill_service.check_skill_visibility(db, skill, user.id, user.role, user.department_id)
     minio_client = _get_minio_client()
-    url = minio_client.get_presigned_url(skill.minio_object_key)
-    return {"download_url": url}
+    data = minio_client.download(skill.minio_object_key)
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{skill.name}.zip"'},
+    )
 
 
 @router.put("/{skill_id}", response_model=SkillResponse)
@@ -170,6 +225,8 @@ async def review_skill(
 ):
     skill = await skill_service.get_skill(db, skill_id)
     updated = await skill_service.review_skill(db, skill, user.id, req.action, req.comment)
+    if req.action == "approve":
+        _extract_skill_to_custom(updated.name)
     return _skill_to_response(updated)
 
 

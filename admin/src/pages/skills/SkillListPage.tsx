@@ -22,10 +22,17 @@ const statusColors: Record<string, string> = {
 };
 
 const visibilityLabels: Record<string, string> = {
-  company: 'Company',
-  department: 'Department',
-  specific_users: 'Specific Users',
-  private: 'Private',
+  company: '全公司',
+  department: '本部门',
+  specific_users: '指定用户',
+  private: '仅自己',
+};
+
+const statusLabels: Record<string, string> = {
+  pending_review: '待审核',
+  approved: '已通过',
+  rejected: '已驳回',
+  withdrawn: '已撤回',
 };
 
 export default function SkillListPage({ showReview = false }: SkillListPageProps) {
@@ -50,10 +57,9 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
 
   const handleDownload = async (skill: Skill) => {
     try {
-      const res = await downloadSkill(skill.id);
-      window.open(res.download_url, '_blank');
+      await downloadSkill(skill.id, skill.name);
     } catch {
-      message.error('Download failed');
+       message.error('下载失败');
     }
   };
 
@@ -66,58 +72,58 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
     if (visibilityModal) {
       setVisMut.mutate(
         { id: visibilityModal.id, visibility: selectedVisibility },
-        { onSuccess: () => { message.success('Visibility updated'); setVisibilityModal(undefined); } },
+        { onSuccess: () => { message.success('可见性已更新'); setVisibilityModal(undefined); } },
       );
     }
   };
 
   const columns: ColumnsType<Skill> = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Version', dataIndex: 'version', key: 'version', width: 80 },
-    { title: 'Author', dataIndex: 'author_name', key: 'author_name', width: 120 },
+    { title: '名称', dataIndex: 'name', key: 'name' },
+    { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
+    { title: '作者', dataIndex: 'author_name', key: 'author_name', width: 120 },
     {
-      title: 'Visibility',
+      title: '可见性',
       dataIndex: 'visibility',
       key: 'visibility',
       width: 120,
       render: (v: string) => <Tag>{visibilityLabels[v] || v}</Tag>,
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status: string) => <Tag color={statusColors[status]}>{status.replace('_', ' ')}</Tag>,
+      render: (status: string) => <Tag color={statusColors[status]}>{statusLabels[status] || status}</Tag>,
     },
-    { title: 'Size', dataIndex: 'file_size', key: 'file_size', width: 80, render: (size: number) => `${(size / 1024).toFixed(1)} KB` },
+    { title: '大小', dataIndex: 'file_size', key: 'file_size', width: 80, render: (size: number) => `${(size / 1024).toFixed(1)} KB` },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
       width: 280,
       render: (_, record) => (
         <Space size={4} wrap>
-          {record.status === SkillStatus.APPROVED && (
-            <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>Download</Button>
+          {(record.status === SkillStatus.APPROVED || user?.role === UserRole.SUPER_ADMIN) && (
+            <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>下载</Button>
           )}
           {record.status === SkillStatus.PENDING_REVIEW && record.author_id === user?.id && (
-            <Button size="small" onClick={() => withdrawMut.mutate(record.id, { onSuccess: () => message.success('Withdrawn') })}>
-              Withdraw
+            <Button size="small" onClick={() => withdrawMut.mutate(record.id, { onSuccess: () => message.success('已撤回') })}>
+              撤回
             </Button>
           )}
           {record.status === SkillStatus.PENDING_REVIEW && user?.role === UserRole.SUPER_ADMIN && (
-            <Button size="small" type="primary" onClick={() => setReviewSkill(record)}>Review</Button>
+            <Button size="small" type="primary" onClick={() => setReviewSkill(record)}>审核</Button>
           )}
           {record.status === SkillStatus.APPROVED && record.author_id === user?.id && (
-            <Button size="small" onClick={() => openVisibilityModal(record)}>Visibility</Button>
+            <Button size="small" onClick={() => openVisibilityModal(record)}>可见性</Button>
           )}
           {(record.status === SkillStatus.WITHDRAWN || record.status === SkillStatus.REJECTED) && record.author_id === user?.id && (
-            <Button size="small" onClick={() => submitMut.mutate(record.id, { onSuccess: () => message.success('Submitted') })}>
-              Resubmit
+            <Button size="small" onClick={() => submitMut.mutate(record.id, { onSuccess: () => message.success('已提交') })}>
+              重新提交
             </Button>
           )}
           {(record.author_id === user?.id || user?.role === UserRole.SUPER_ADMIN) && (
-            <Popconfirm title="Delete this skill?" onConfirm={() => deleteMut.mutate(record.id, { onSuccess: () => message.success('Deleted') })}>
-              <Button size="small" danger>Delete</Button>
+            <Popconfirm title="确认删除该 Skill？" onConfirm={() => deleteMut.mutate(record.id, { onSuccess: () => message.success('已删除') })}>
+              <Button size="small" danger>删除</Button>
             </Popconfirm>
           )}
         </Space>
@@ -126,11 +132,11 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
   ];
 
   const tabItems = [
-    { key: 'all', label: 'All' },
-    { key: SkillStatus.PENDING_REVIEW, label: 'Pending Review' },
-    { key: SkillStatus.APPROVED, label: 'Approved' },
-    { key: SkillStatus.REJECTED, label: 'Rejected' },
-    { key: SkillStatus.WITHDRAWN, label: 'Withdrawn' },
+    { key: 'all', label: '全部' },
+    { key: SkillStatus.PENDING_REVIEW, label: '待审核' },
+    { key: SkillStatus.APPROVED, label: '已通过' },
+    { key: SkillStatus.REJECTED, label: '已驳回' },
+    { key: SkillStatus.WITHDRAWN, label: '已撤回' },
   ];
 
   return (
@@ -138,7 +144,7 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
         {!showReview && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setUploadOpen(true)}>
-            Upload Skill
+            上传 Skill
           </Button>
         )}
       </div>
@@ -165,7 +171,7 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
         />
       )}
       <Modal
-        title="Set Visibility"
+        title="设置可见性"
         open={!!visibilityModal}
         onCancel={() => setVisibilityModal(undefined)}
         onOk={handleVisibilityOk}
@@ -175,10 +181,10 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
           onChange={(v) => setSelectedVisibility(v)}
           style={{ width: '100%' }}
           options={[
-            { value: SkillVisibility.COMPANY, label: 'Company (All users)' },
-            { value: SkillVisibility.DEPARTMENT, label: 'Department' },
-            { value: SkillVisibility.SPECIFIC_USERS, label: 'Specific Users' },
-            { value: SkillVisibility.PRIVATE, label: 'Private (Only me)' },
+            { value: SkillVisibility.COMPANY, label: '全公司（所有用户）' },
+            { value: SkillVisibility.DEPARTMENT, label: '本部门' },
+            { value: SkillVisibility.SPECIFIC_USERS, label: '指定用户' },
+            { value: SkillVisibility.PRIVATE, label: '仅自己' },
           ]}
         />
       </Modal>

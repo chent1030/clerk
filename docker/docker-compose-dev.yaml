@@ -224,8 +224,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  # Persist .venv across container restarts so dependencies installed during
-  # image build are not shadowed by the host backend/ directory mount.
   gateway-venv:
   langgraph-venv:
 

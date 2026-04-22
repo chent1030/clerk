@@ -1,6 +1,6 @@
 # DeerFlow - Unified Development Environment
 
-.PHONY: help config config-upgrade check install dev dev-pro dev-daemon dev-daemon-pro start start-pro start-daemon start-daemon-pro stop up up-pro down clean docker-init docker-start docker-start-pro docker-stop docker-logs docker-logs-frontend docker-logs-gateway
+.PHONY: help config config-upgrade check install dev dev-pro dev-daemon dev-daemon-pro start start-pro start-daemon start-daemon-pro stop up up-pro down clean docker-init docker-start docker-start-pro docker-stop docker-logs docker-logs-frontend docker-logs-gateway admin-install admin-dev admin-build db-migrate db-seed infra-up infra-down
 
 BASH ?= bash
 
@@ -43,6 +43,10 @@ help:
 	@echo "  make docker-logs     - View Docker development logs"
 	@echo "  make docker-logs-frontend - View Docker frontend logs"
 	@echo "  make docker-logs-gateway - View Docker gateway logs"
+	@echo ""
+	@echo "Infrastructure Commands:"
+	@echo "  make infra-up        - Start only PostgreSQL and MinIO (for local dev)"
+	@echo "  make infra-down      - Stop PostgreSQL and MinIO"
 
 config:
 	@$(PYTHON) ./scripts/configure.py
@@ -60,6 +64,8 @@ install:
 	@cd backend && uv sync
 	@echo "Installing frontend dependencies..."
 	@cd frontend && pnpm install
+	@echo "Installing admin panel dependencies..."
+	@cd admin && pnpm install
 	@echo "✓ All dependencies installed"
 	@echo ""
 	@echo "=========================================="
@@ -232,3 +238,26 @@ up-pro:
 # Stop and remove production containers
 down:
 	@./scripts/deploy.sh down
+
+admin-install:
+	@cd admin && pnpm install
+
+admin-dev:
+	@cd admin && pnpm dev
+
+admin-build:
+	@cd admin && pnpm build
+
+db-migrate:
+	@cd backend && PYTHONPATH=. uv run alembic upgrade head
+
+db-seed:
+	@cd backend && PYTHONPATH=. uv run python scripts/seed_admin.py
+
+infra-up:
+	@cd docker && docker compose -f docker-compose.infra.yaml up -d
+	@echo "✓ PostgreSQL (5432) and MinIO (9000/9001) started"
+
+infra-down:
+	@cd docker && docker compose -f docker-compose.infra.yaml down
+	@echo "✓ PostgreSQL and MinIO stopped"

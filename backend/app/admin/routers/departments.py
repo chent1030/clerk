@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.admin.deps import get_current_user, get_db, require_role
+from app.admin.deps import get_db, require_role
 from app.admin.models.user import User, UserRole
 from app.admin.schemas.department import (
     DepartmentCreate,

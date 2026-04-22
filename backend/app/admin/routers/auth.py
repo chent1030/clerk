@@ -1,16 +1,20 @@
-import uuid
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.auth.jwt import create_access_token, create_refresh_token, decode_token
-from app.admin.auth.password import verify_password, hash_password
-from app.admin.deps import get_db, get_current_user
-from app.admin.models.user import User, UserRole, UserStatus
+from app.admin.auth.password import hash_password, verify_password
+from app.admin.deps import get_current_user, get_db
+from app.admin.models.user import User, UserStatus
 from app.admin.schemas.auth import (
-    ChangePasswordRequest, LoginRequest, RefreshRequest, TokenResponse, UserInfoResponse,
+    ChangePasswordRequest,
+    LoginRequest,
+    RefreshRequest,
+    TokenResponse,
+    UserInfoResponse,
 )
 from deerflow.config import get_app_config
 

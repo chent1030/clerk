@@ -21,29 +21,32 @@ export default function UserListPage() {
   const toggleStatus = useToggleUserStatus();
   const deleteUser = useDeleteUser();
 
+  const roleLabels: Record<string, string> = { super_admin: '超级管理员', dept_admin: '部门管理员', user: '普通用户' };
+  const statusLabels: Record<string, string> = { active: '启用', disabled: '禁用' };
+
   const columns: ColumnsType<User> = [
-    { title: 'Username', dataIndex: 'username', key: 'username' },
-    { title: 'Display Name', dataIndex: 'display_name', key: 'display_name' },
+    { title: '用户名', dataIndex: 'username', key: 'username' },
+    { title: '显示名', dataIndex: 'display_name', key: 'display_name' },
     {
-      title: 'Role',
+      title: '角色',
       dataIndex: 'role',
       key: 'role',
       render: (role: string) => {
         const colorMap: Record<string, string> = { super_admin: 'red', dept_admin: 'blue', user: 'green' };
-        return <Tag color={colorMap[role] || 'default'}>{role}</Tag>;
+        return <Tag color={colorMap[role] || 'default'}>{roleLabels[role] || role}</Tag>;
       },
     },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
+    { title: '邮箱', dataIndex: 'email', key: 'email' },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>{status}</Tag>
+        <Tag color={status === 'active' ? 'green' : 'red'}>{statusLabels[status] || status}</Tag>
       ),
     },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
       render: (_, record) => (
         <Space>
@@ -52,29 +55,29 @@ export default function UserListPage() {
               <Button size="small" onClick={() => {
                 setEditingUser(record);
                 setModalOpen(true);
-              }}>Edit</Button>
+              }}>编辑</Button>
               <Popconfirm
-                title={`Confirm ${record.status === 'active' ? 'disable' : 'enable'} user?`}
+                title={`确认${record.status === 'active' ? '禁用' : '启用'}用户？`}
                 onConfirm={() => {
                   const newStatus = record.status === 'active' ? UserStatus.DISABLED : UserStatus.ACTIVE;
                   toggleStatus.mutate({ id: record.id, status: newStatus }, {
-                    onSuccess: () => message.success('Status updated'),
+                    onSuccess: () => message.success('状态已更新'),
                   });
                 }}
               >
                 <Button size="small" danger={record.status === 'active'}>
-                  {record.status === 'active' ? 'Disable' : 'Enable'}
+                  {record.status === 'active' ? '禁用' : '启用'}
                 </Button>
               </Popconfirm>
               <Popconfirm
-                title="Confirm delete user?"
+                title="确认删除用户？"
                 onConfirm={() => {
                   deleteUser.mutate(record.id, {
-                    onSuccess: () => message.success('User deleted'),
+                    onSuccess: () => message.success('用户已删除'),
                   });
                 }}
               >
-                <Button size="small" danger>Delete</Button>
+                <Button size="small" danger>删除</Button>
               </Popconfirm>
             </>
           )}
@@ -82,7 +85,7 @@ export default function UserListPage() {
             <Button size="small" onClick={() => {
               setEditingUser(record);
               setModalOpen(true);
-            }}>Edit</Button>
+            }}>编辑</Button>
           )}
         </Space>
       ),
@@ -94,7 +97,7 @@ export default function UserListPage() {
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
           <Input
-            placeholder="Search users..."
+            placeholder="搜索用户..."
             prefix={<SearchOutlined />}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -102,7 +105,7 @@ export default function UserListPage() {
           />
         </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingUser(undefined); setModalOpen(true); }}>
-          New User
+          新建用户
         </Button>
       </div>
       <Table

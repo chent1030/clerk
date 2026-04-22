@@ -1,7 +1,8 @@
 import uuid
+
 from pydantic import BaseModel, Field
 
-from app.admin.models.skill import SkillStatus, SkillVisibility
+from app.admin.models.skill import SkillVisibility
 
 
 class SkillUpdate(BaseModel):

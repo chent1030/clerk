@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 
@@ -7,7 +7,7 @@ from app.admin.config import JwtConfig
 
 
 def create_access_token(user_id: uuid.UUID, username: str, role: str, department_id: uuid.UUID | None, tenant_id: str, config: JwtConfig) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=config.access_token_expire_minutes)
+    expire = datetime.now(UTC) + timedelta(minutes=config.access_token_expire_minutes)
     payload = {
         "sub": str(user_id),
         "username": username,
@@ -21,7 +21,7 @@ def create_access_token(user_id: uuid.UUID, username: str, role: str, department
 
 
 def create_refresh_token(user_id: uuid.UUID, config: JwtConfig) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=config.refresh_token_expire_days)
+    expire = datetime.now(UTC) + timedelta(days=config.refresh_token_expire_days)
     payload = {
         "sub": str(user_id),
         "exp": expire,
