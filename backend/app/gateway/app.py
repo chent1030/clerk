@@ -4,6 +4,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from app.admin.config import AdminConfig
+from app.admin.minio import MinioClient
+from app.admin.routers import auth as admin_auth
+from app.admin.routers import departments as admin_depts
+from app.admin.routers import skills as admin_skills
+from app.admin.routers import users as admin_users
 from app.gateway.config import get_gateway_config
 from app.gateway.deps import langgraph_runtime
 from app.gateway.routers import (
@@ -48,6 +56,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     config = get_gateway_config()
     logger.info(f"Starting API Gateway on {config.host}:{config.port}")
 
+    admin_config: AdminConfig = get_app_config().admin
+    admin_engine = create_async_engine(admin_config.database_url)
+    app.state.admin_session_factory = async_sessionmaker(admin_engine, expire_on_commit=False)
+    app.state.minio_client = MinioClient(admin_config.minio)
+    logger.info("Admin module initialised (DB + MinIO)")
+
     # Initialize LangGraph runtime components (StreamBridge, RunManager, checkpointer, store)
     async with langgraph_runtime(app):
         logger.info("LangGraph runtime initialised")
@@ -71,6 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception:
             logger.exception("Failed to stop channel service")
 
+    await admin_engine.dispose()
     logger.info("Shutting down API Gateway")
 
 
@@ -205,6 +220,11 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     # Stateless Runs API (stream/wait without a pre-existing thread)
     app.include_router(runs.router)
 
+    app.include_router(admin_auth.router)
+    app.include_router(admin_users.router)
+    app.include_router(admin_depts.router)
+    app.include_router(admin_skills.router)
+
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:
         """Health check endpoint.
@@ -214,6 +234,10 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
         """
         return {"status": "healthy", "service": "deer-flow-gateway"}
 
+    return app
+
+
+def get_app() -> FastAPI:
     return app
 
 
