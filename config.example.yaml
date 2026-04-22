@@ -12,7 +12,7 @@
 # ============================================================================
 # Bump this number when the config schema changes.
 # Run `make config-upgrade` to merge new fields into your local config.yaml.
-config_version: 5
+config_version: 6
 
 # ============================================================================
 # Logging
@@ -760,3 +760,30 @@ checkpointer:
 #     use: my_package:MyGuardrailProvider
 #     config:
 #       key: value
+
+# ============================================================================
+# Admin Panel Configuration
+# ============================================================================
+admin:
+  # PostgreSQL connection URL for the admin system
+  database_url: postgresql+asyncpg://deerflow:deerflow@localhost:5432/deerflow_admin
+
+  # MinIO object storage for skill files
+  minio:
+    endpoint: localhost:9000
+    access_key: $MINIO_ACCESS_KEY
+    secret_key: $MINIO_SECRET_KEY
+    bucket: deerflow-skills
+    secure: false
+
+  # JWT authentication settings
+  jwt:
+    secret_key: $JWT_SECRET_KEY
+    access_token_expire_minutes: 60
+    refresh_token_expire_days: 7
+
+  # Initial super admin account (created on first seed)
+  initial_super_admin:
+    username: admin
+    password: $ADMIN_INITIAL_PASSWORD
+    email: admin@example.com

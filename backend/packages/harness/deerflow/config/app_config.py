@@ -30,6 +30,53 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+class MinioConfig(BaseModel):
+    endpoint: str = Field(default="localhost:9000", description="MinIO endpoint")
+    access_key: str = Field(default="", description="MinIO access key")
+    secret_key: str = Field(default="", description="MinIO secret key")
+    bucket: str = Field(default="deerflow-skills", description="MinIO bucket name")
+    secure: bool = Field(default=False, description="Use HTTPS")
+
+
+class JwtConfig(BaseModel):
+    secret_key: str = Field(default="change-me-in-production", description="JWT signing key")
+    access_token_expire_minutes: int = Field(default=60, ge=1, description="Access token TTL")
+    refresh_token_expire_days: int = Field(default=7, ge=1, description="Refresh token TTL")
+
+
+class InitialSuperAdminConfig(BaseModel):
+    username: str = Field(default="admin", description="Initial super admin username")
+    password: str = Field(default="admin123", description="Initial super admin password")
+    email: str = Field(default="admin@example.com", description="Initial super admin email")
+
+
+class AdminConfig(BaseModel):
+    database_url: str = Field(
+        default="postgresql+asyncpg://deerflow:deerflow@localhost:5432/deerflow_admin",
+        description="PostgreSQL connection URL",
+    )
+    minio: MinioConfig = Field(default_factory=MinioConfig)
+    jwt: JwtConfig = Field(default_factory=JwtConfig)
+    initial_super_admin: InitialSuperAdminConfig = Field(default_factory=InitialSuperAdminConfig)
+
+
+_admin_config: AdminConfig = AdminConfig()
+
+
+def get_admin_config() -> AdminConfig:
+    return _admin_config
+
+
+def set_admin_config(config: AdminConfig) -> None:
+    global _admin_config
+    _admin_config = config
+
+
+def load_admin_config_from_dict(config_dict: dict) -> None:
+    global _admin_config
+    _admin_config = AdminConfig(**config_dict)
+
+
 def _default_config_candidates() -> tuple[Path, ...]:
     """Return deterministic config.yaml locations without relying on cwd."""
     backend_dir = Path(__file__).resolve().parents[4]
@@ -58,6 +105,7 @@ class AppConfig(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=False)
     checkpointer: CheckpointerConfig | None = Field(default=None, description="Checkpointer configuration")
     stream_bridge: StreamBridgeConfig | None = Field(default=None, description="Stream bridge configuration")
+    admin: AdminConfig = Field(default_factory=AdminConfig, description="Admin panel configuration")
 
     @classmethod
     def resolve_config_path(cls, config_path: str | None = None) -> Path:
@@ -136,6 +184,10 @@ class AppConfig(BaseModel):
         # Load stream bridge config if present
         if "stream_bridge" in config_data:
             load_stream_bridge_config_from_dict(config_data["stream_bridge"])
+
+        # Load admin config if present
+        if "admin" in config_data:
+            load_admin_config_from_dict(config_data["admin"])
 
         # Always refresh ACP agent config so removed entries do not linger across reloads.
         load_acp_config_from_dict(config_data.get("acp_agents", {}))
