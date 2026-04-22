@@ -1,17 +1,19 @@
+import logging
 import uuid
 from typing import AsyncGenerator
 
+import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.admin.auth.jwt import decode_token
+from app.admin.auth.middleware import oauth2_scheme
 from app.admin.config import AdminConfig
 from app.admin.models.user import User, UserRole, UserStatus
 from deerflow.config import get_app_config
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/admin/auth/login")
+logger = logging.getLogger(__name__)
 
 
 def _get_admin_config() -> AdminConfig:
@@ -39,14 +41,20 @@ async def get_current_user(
     config = _get_admin_config().jwt
     try:
         payload = decode_token(token, config.secret_key)
-    except Exception:
+    except jwt.InvalidTokenError:
+        logger.debug("Failed to decode JWT token")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     if payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    try:
+        uid = uuid.UUID(user_id)
+    except (ValueError, AttributeError):
+        logger.debug("Invalid UUID in token subject: %s", user_id)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+    result = await db.execute(select(User).where(User.id == uid))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
