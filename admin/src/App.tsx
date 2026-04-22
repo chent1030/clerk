@@ -31,6 +31,7 @@ function App() {
               <Route index element={<Navigate to="dashboard" />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="users" element={<RoleGuard roles={[UserRole.SUPER_ADMIN, UserRole.DEPT_ADMIN]}><UserListPage /></RoleGuard>} />
+              <Route path="departments" element={<RoleGuard roles={[UserRole.SUPER_ADMIN]}><DepartmentPage /></RoleGuard>} />
             </Route>
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
