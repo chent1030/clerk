@@ -8,6 +8,15 @@ VIRTUAL_PATH_PREFIX = "/mnt/user-data"
 
 _SAFE_THREAD_ID_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
+_SAFE_USERNAME_RE = re.compile(r"^[A-Za-z0-9_\-.@]+$")
+
+
+def _validate_username(username: str) -> str:
+    """Validate a username before using it in filesystem paths."""
+    if not _SAFE_USERNAME_RE.match(username):
+        raise ValueError(f"Invalid username {username!r}: only alphanumeric, hyphens, underscores, dots, and @ allowed.")
+    return username
+
 
 def _default_local_base_dir() -> Path:
     """Return the repo-local DeerFlow state directory without relying on cwd."""
@@ -133,6 +142,14 @@ class Paths:
     def agent_memory_file(self, name: str) -> Path:
         """Per-agent memory file: `{base_dir}/agents/{name}/memory.json`."""
         return self.agent_dir(name) / "memory.json"
+
+    def user_memory_file(self, username: str) -> Path:
+        """Per-user memory file: `{base_dir}/memory/{username}/memory.json`."""
+        return self.base_dir / "memory" / _validate_username(username) / "memory.json"
+
+    def user_agent_memory_file(self, username: str, agent_name: str) -> Path:
+        """Per-user per-agent memory: `{base_dir}/memory/{username}/agents/{agent_name}/memory.json`."""
+        return self.base_dir / "memory" / _validate_username(username) / "agents" / agent_name.lower() / "memory.json"
 
     def thread_dir(self, thread_id: str) -> Path:
         """

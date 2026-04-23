@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Table, Button, Input, Space, Tag, Popconfirm, message } from 'antd';
+import { Table, Button, Input, Space, Tag, Popconfirm, message, Select } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useUsers, useToggleUserStatus, useDeleteUser } from '../../hooks/useUsers';
+import { useDepartmentOptions } from '../../hooks/useDepartments';
 import { useAuthStore } from '../../stores/auth';
 import { UserRole, UserStatus } from '../../types';
 import type { User } from '../../types';
@@ -12,17 +13,23 @@ export default function UserListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
-  const [deptId] = useState<string | undefined>();
+  const [deptId, setDeptId] = useState<string | undefined>();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>();
 
   const { user: currentUser } = useAuthStore();
   const { data, isLoading } = useUsers(page, pageSize, search || undefined, deptId);
+  const { options: deptOptions } = useDepartmentOptions();
   const toggleStatus = useToggleUserStatus();
   const deleteUser = useDeleteUser();
 
   const roleLabels: Record<string, string> = { super_admin: '超级管理员', dept_admin: '部门管理员', user: '普通用户' };
   const statusLabels: Record<string, string> = { active: '启用', disabled: '禁用' };
+
+  const deptNameMap: Record<string, string> = {};
+  for (const opt of deptOptions) {
+    deptNameMap[opt.value] = opt.label;
+  }
 
   const columns: ColumnsType<User> = [
     { title: '用户名', dataIndex: 'username', key: 'username' },
@@ -35,6 +42,12 @@ export default function UserListPage() {
         const colorMap: Record<string, string> = { super_admin: 'red', dept_admin: 'blue', user: 'green' };
         return <Tag color={colorMap[role] || 'default'}>{roleLabels[role] || role}</Tag>;
       },
+    },
+    {
+      title: '所属部门',
+      dataIndex: 'department_id',
+      key: 'department_id',
+      render: (deptId: string | null) => deptId ? (deptNameMap[deptId] || deptId) : '-',
     },
     { title: '邮箱', dataIndex: 'email', key: 'email' },
     {
@@ -103,6 +116,16 @@ export default function UserListPage() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             style={{ width: 250 }}
           />
+          {currentUser?.role === UserRole.SUPER_ADMIN && (
+            <Select
+              placeholder="筛选部门"
+              allowClear
+              style={{ width: 200 }}
+              value={deptId}
+              onChange={(v) => { setDeptId(v); setPage(1); }}
+              options={deptOptions}
+            />
+          )}
         </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingUser(undefined); setModalOpen(true); }}>
           新建用户

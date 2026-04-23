@@ -3,12 +3,12 @@ import uuid
 from collections.abc import AsyncGenerator
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.admin.auth.jwt import decode_token
-from app.admin.auth.middleware import oauth2_scheme
+from app.admin.auth.middleware import get_token_from_request
 from app.admin.config import AdminConfig
 from app.admin.models.user import User, UserRole, UserStatus
 from deerflow.config import get_app_config
@@ -35,9 +35,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    token = await get_token_from_request(request)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     config = _get_admin_config().jwt
     try:
         payload = decode_token(token, config.secret_key)
@@ -68,4 +71,5 @@ def require_role(*roles: UserRole):
         if user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return user
+
     return _checker

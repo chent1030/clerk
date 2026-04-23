@@ -86,7 +86,9 @@ async def update_user(
     if current_user.role == UserRole.DEPT_ADMIN:
         department_id = current_user.department_id
         role = None
-    updated = await user_service.update_user(db, user, req.display_name, req.email, department_id, role)
+    if req.clear_department and current_user.role == UserRole.SUPER_ADMIN:
+        department_id = None
+    updated = await user_service.update_user(db, user, req.display_name, req.email, department_id, role, req.clear_department and current_user.role == UserRole.SUPER_ADMIN)
     return _user_to_response(updated)
 
 

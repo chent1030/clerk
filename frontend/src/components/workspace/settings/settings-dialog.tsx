@@ -31,8 +31,7 @@ type SettingsSection =
   | "memory"
   | "tools"
   | "skills"
-  | "notification"
-  | "about";
+  | "notification";
 
 type SettingsDialogProps = React.ComponentProps<typeof Dialog> & {
   defaultSection?: SettingsSection;
@@ -71,15 +70,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
       },
       { id: "tools", label: t.settings.sections.tools, icon: WrenchIcon },
       { id: "skills", label: t.settings.sections.skills, icon: SparklesIcon },
-      { id: "about", label: t.settings.sections.about, icon: InfoIcon },
     ],
     [
       t.settings.sections.appearance,
       t.settings.sections.memory,
       t.settings.sections.tools,
       t.settings.sections.skills,
-      t.settings.sections.notification,
-      t.settings.sections.about,
+      t.settings.sections.notification
     ],
   );
   return (
@@ -133,7 +130,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
                 />
               )}
               {activeSection === "notification" && <NotificationSettingsPage />}
-              {activeSection === "about" && <AboutSettingsPage />}
             </div>
           </ScrollArea>
         </div>

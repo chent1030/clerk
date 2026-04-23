@@ -1,10 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDepartmentTree, createDepartment, updateDepartment, deleteDepartment } from '../api/departments';
+import { getDepartmentTree, createDepartment, updateDepartment, deleteDepartment, listDepartmentUsers } from '../api/departments';
+import type { Department } from '../types';
+
+function flattenDepartments(depts: Department[], prefix = ''): { value: string; label: string }[] {
+  const result: { value: string; label: string }[] = [];
+  for (const d of depts) {
+    result.push({ value: d.id, label: prefix + d.name });
+    if (d.children?.length) {
+      result.push(...flattenDepartments(d.children, prefix + d.name + ' / '));
+    }
+  }
+  return result;
+}
 
 export function useDepartmentTree() {
   return useQuery({
     queryKey: ['departments'],
     queryFn: getDepartmentTree,
+  });
+}
+
+export function useDepartmentOptions() {
+  const { data, ...rest } = useDepartmentTree();
+  return {
+    ...rest,
+    options: data?.departments ? flattenDepartments(data.departments) : [],
+  };
+}
+
+export function useDepartmentUsers(deptId: string | undefined, page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ['department-users', deptId, page, pageSize],
+    queryFn: () => listDepartmentUsers(deptId!, { page, page_size: pageSize }),
+    enabled: !!deptId,
   });
 }
 

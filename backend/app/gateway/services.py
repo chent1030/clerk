@@ -240,6 +240,7 @@ async def start_run(
     body: Any,
     thread_id: str,
     request: Request,
+    current_user: Any | None = None,
 ) -> RunRecord:
     """Create a RunRecord and launch the background agent task.
 
@@ -303,6 +304,25 @@ async def start_run(
         for key in _CONTEXT_CONFIGURABLE_KEYS:
             if key in context:
                 configurable.setdefault(key, context[key])
+
+    if current_user is not None:
+        configurable = config.setdefault("configurable", {})
+        configurable.setdefault("username", current_user.username)
+        try:
+            from sqlalchemy.ext.asyncio import async_sessionmaker
+
+            from app.admin.services import skill_service as admin_skill_service
+
+            async with async_sessionmaker(request.app.state.db_engine)() as db:
+                visible_names = await admin_skill_service.list_visible_skills_for_user(
+                    db,
+                    current_user.id,
+                    current_user.role.value,
+                    current_user.department_id,
+                )
+            configurable.setdefault("visible_skills", visible_names)
+        except Exception:
+            logger.debug("Failed to fetch visible_skills for user %s", current_user.username)
 
     stream_modes = normalize_stream_modes(body.stream_mode)
 

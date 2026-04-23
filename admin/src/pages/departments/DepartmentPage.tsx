@@ -1,17 +1,37 @@
 import { useState } from 'react';
-import { Tree, Button, Space, Popconfirm, message, Card } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Tree, Button, Space, Popconfirm, message, Card, Modal, Table } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, TeamOutlined } from '@ant-design/icons';
 import type { TreeProps } from 'antd';
-import { useDepartmentTree, useDeleteDepartment } from '../../hooks/useDepartments';
-import type { Department } from '../../types';
+import type { ColumnsType } from 'antd/es/table';
+import { useDepartmentTree, useDeleteDepartment, useDepartmentUsers } from '../../hooks/useDepartments';
+import type { Department, User } from '../../types';
 import DepartmentForm from './DepartmentForm';
 
 export default function DepartmentPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | undefined>();
   const [parentId, setParentId] = useState<string | undefined>();
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [membersDeptId, setMembersDeptId] = useState<string | undefined>();
+  const [membersDeptName, setMembersDeptName] = useState('');
+  const [membersPage, setMembersPage] = useState(1);
   const { data, isLoading } = useDepartmentTree();
   const deleteDept = useDeleteDepartment();
+  const { data: membersData, isLoading: membersLoading } = useDepartmentUsers(membersDeptId, membersPage);
+
+  const showMembers = (deptId: string, deptName: string) => {
+    setMembersDeptId(deptId);
+    setMembersDeptName(deptName);
+    setMembersPage(1);
+    setMembersOpen(true);
+  };
+
+  const memberColumns: ColumnsType<User> = [
+    { title: '用户名', dataIndex: 'username', key: 'username' },
+    { title: '显示名', dataIndex: 'display_name', key: 'display_name' },
+    { title: '角色', dataIndex: 'role', key: 'role' },
+    { title: '邮箱', dataIndex: 'email', key: 'email' },
+  ];
 
   const buildTreeData = (depts: Department[]): TreeProps['treeData'] =>
     depts.map((dept) => ({
@@ -21,6 +41,16 @@ export default function DepartmentPage() {
           {dept.name}
           <span style={{ color: '#999', fontSize: 12 }}>({dept.member_count} 人)</span>
           <Space size={4}>
+            <Button
+              type="link"
+              size="small"
+              icon={<TeamOutlined />}
+              title="查看成员"
+              onClick={(e) => {
+                e.stopPropagation();
+                showMembers(dept.id, dept.name);
+              }}
+            />
             <Button
               type="link"
               size="small"
@@ -91,6 +121,26 @@ export default function DepartmentPage() {
         parentId={parentId}
         onClose={() => { setFormOpen(false); setEditingDept(undefined); setParentId(undefined); }}
       />
+      <Modal
+        title={`${membersDeptName} - 成员列表`}
+        open={membersOpen}
+        onCancel={() => setMembersOpen(false)}
+        footer={null}
+        width={700}
+      >
+        <Table
+          columns={memberColumns}
+          dataSource={membersData?.users || []}
+          rowKey="id"
+          loading={membersLoading}
+          pagination={{
+            current: membersPage,
+            pageSize: 20,
+            total: membersData?.total || 0,
+            onChange: setMembersPage,
+          }}
+        />
+      </Modal>
     </div>
   );
 }

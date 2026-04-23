@@ -73,12 +73,15 @@ async def update_user(
     email: str | None,
     department_id: uuid.UUID | None,
     role: UserRole | None,
+    clear_department: bool = False,
 ) -> User:
     if display_name is not None:
         user.display_name = display_name
     if email is not None:
         user.email = email
-    if department_id is not None:
+    if clear_department:
+        user.department_id = None
+    elif department_id is not None:
         user.department_id = department_id
     if role is not None:
         user.role = role

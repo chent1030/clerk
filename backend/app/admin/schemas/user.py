@@ -18,6 +18,7 @@ class UserUpdate(BaseModel):
     display_name: str | None = Field(default=None, max_length=100)
     email: str | None = Field(default=None, max_length=255)
     department_id: uuid.UUID | None = None
+    clear_department: bool = False
     role: UserRole | None = None
 
 

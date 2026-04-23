@@ -11,9 +11,11 @@ import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
+from app.admin.deps import get_current_user
+from app.admin.models.user import User
 from app.gateway.deps import get_checkpointer, get_run_manager, get_stream_bridge
 from app.gateway.routers.thread_runs import RunCreateRequest
 from app.gateway.services import sse_consumer, start_run
@@ -32,7 +34,7 @@ def _resolve_thread_id(body: RunCreateRequest) -> str:
 
 
 @router.post("/stream")
-async def stateless_stream(body: RunCreateRequest, request: Request) -> StreamingResponse:
+async def stateless_stream(body: RunCreateRequest, request: Request, current_user: User = Depends(get_current_user)) -> StreamingResponse:
     """Create a run and stream events via SSE.
 
     If ``config.configurable.thread_id`` is provided, the run is created
@@ -42,7 +44,7 @@ async def stateless_stream(body: RunCreateRequest, request: Request) -> Streamin
     thread_id = _resolve_thread_id(body)
     bridge = get_stream_bridge(request)
     run_mgr = get_run_manager(request)
-    record = await start_run(body, thread_id, request)
+    record = await start_run(body, thread_id, request, current_user=current_user)
 
     return StreamingResponse(
         sse_consumer(bridge, record, request, run_mgr),
@@ -57,7 +59,7 @@ async def stateless_stream(body: RunCreateRequest, request: Request) -> Streamin
 
 
 @router.post("/wait", response_model=dict)
-async def stateless_wait(body: RunCreateRequest, request: Request) -> dict:
+async def stateless_wait(body: RunCreateRequest, request: Request, current_user: User = Depends(get_current_user)) -> dict:
     """Create a run and block until completion.
 
     If ``config.configurable.thread_id`` is provided, the run is created
@@ -65,7 +67,7 @@ async def stateless_wait(body: RunCreateRequest, request: Request) -> dict:
     Otherwise a new temporary thread is created.
     """
     thread_id = _resolve_thread_id(body)
-    record = await start_run(body, thread_id, request)
+    record = await start_run(body, thread_id, request, current_user=current_user)
 
     if record.task is not None:
         try:

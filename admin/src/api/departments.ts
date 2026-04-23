@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Department } from '../types';
+import type { Department, User } from '../types';
 
 interface DepartmentTreeResponse {
   departments: Department[];
@@ -13,6 +13,13 @@ interface CreateDepartmentParams {
 interface UpdateDepartmentParams {
   name?: string;
   parent_id?: string;
+}
+
+interface DepartmentUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export async function getDepartmentTree(): Promise<DepartmentTreeResponse> {
@@ -37,4 +44,12 @@ export async function updateDepartment(id: string, data: UpdateDepartmentParams)
 
 export async function deleteDepartment(id: string): Promise<void> {
   await apiClient.delete(`/api/admin/departments/${id}`);
+}
+
+export async function listDepartmentUsers(
+  id: string,
+  params?: { page?: number; page_size?: number },
+): Promise<DepartmentUsersResponse> {
+  const res = await apiClient.get(`/api/admin/departments/${id}/users`, { params });
+  return res.data;
 }

@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.models.department import Department
@@ -20,7 +20,12 @@ async def get_all_departments(db: AsyncSession) -> list[Department]:
     return list(result.scalars().all())
 
 
-def build_department_tree(departments: list[Department]) -> list[dict]:
+async def get_member_counts(db: AsyncSession) -> dict[str, int]:
+    result = await db.execute(select(User.department_id, func.count(User.id)).group_by(User.department_id))
+    return {str(row[0]): row[1] for row in result.all() if row[0] is not None}
+
+
+def build_department_tree(departments: list[Department], member_counts: dict[str, int]) -> list[dict]:
     dept_map = {}
     for dept in departments:
         dept_map[str(dept.id)] = {
@@ -29,7 +34,7 @@ def build_department_tree(departments: list[Department]) -> list[dict]:
             "parent_id": str(dept.parent_id) if dept.parent_id else None,
             "created_at": dept.created_at.isoformat() if dept.created_at else None,
             "children": [],
-            "member_count": 0,
+            "member_count": member_counts.get(str(dept.id), 0),
         }
     tree = []
     for dept in departments:
@@ -49,16 +54,12 @@ async def get_department(db: AsyncSession, dept_id: uuid.UUID) -> Department:
     return dept
 
 
-async def update_department(
-    db: AsyncSession, dept: Department, name: str | None, parent_id: uuid.UUID | None
-) -> Department:
+async def update_department(db: AsyncSession, dept: Department, name: str | None, parent_id: uuid.UUID | None) -> Department:
     if name is not None:
         dept.name = name
     if parent_id is not None:
         if parent_id == dept.id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Department cannot be its own parent"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Department cannot be its own parent")
         dept.parent_id = parent_id
     db.add(dept)
     await db.flush()

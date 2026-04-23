@@ -20,6 +20,7 @@ class ConversationContext:
     messages: list[Any]
     timestamp: datetime = field(default_factory=datetime.utcnow)
     agent_name: str | None = None
+    username: str | None = None
     correction_detected: bool = False
     reinforcement_detected: bool = False
 
@@ -44,6 +45,7 @@ class MemoryUpdateQueue:
         thread_id: str,
         messages: list[Any],
         agent_name: str | None = None,
+        username: str | None = None,
         correction_detected: bool = False,
         reinforcement_detected: bool = False,
     ) -> None:
@@ -71,6 +73,7 @@ class MemoryUpdateQueue:
                 thread_id=thread_id,
                 messages=messages,
                 agent_name=agent_name,
+                username=username,
                 correction_detected=merged_correction_detected,
                 reinforcement_detected=merged_reinforcement_detected,
             )
@@ -134,6 +137,7 @@ class MemoryUpdateQueue:
                         messages=context.messages,
                         thread_id=context.thread_id,
                         agent_name=context.agent_name,
+                        username=context.username,
                         correction_detected=context.correction_detected,
                         reinforcement_detected=context.reinforcement_detected,
                     )

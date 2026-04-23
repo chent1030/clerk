@@ -80,13 +80,16 @@ async function readMemoryResponse(
 }
 
 export async function loadMemory(): Promise<UserMemory> {
-  const response = await fetch(`${getBackendBaseURL()}/api/memory`);
+  const response = await fetch(`${getBackendBaseURL()}/api/memory`, {
+    credentials: "include",
+  });
   return readMemoryResponse(response, "Failed to fetch memory");
 }
 
 export async function clearMemory(): Promise<UserMemory> {
   const response = await fetch(`${getBackendBaseURL()}/api/memory`, {
     method: "DELETE",
+    credentials: "include",
   });
   return readMemoryResponse(response, "Failed to clear memory");
 }
@@ -96,19 +99,23 @@ export async function deleteMemoryFact(factId: string): Promise<UserMemory> {
     `${getBackendBaseURL()}/api/memory/facts/${encodeURIComponent(factId)}`,
     {
       method: "DELETE",
+      credentials: "include",
     },
   );
   return readMemoryResponse(response, "Failed to delete memory fact");
 }
 
 export async function exportMemory(): Promise<UserMemory> {
-  const response = await fetch(`${getBackendBaseURL()}/api/memory/export`);
+  const response = await fetch(`${getBackendBaseURL()}/api/memory/export`, {
+    credentials: "include",
+  });
   return readMemoryResponse(response, "Failed to export memory");
 }
 
 export async function importMemory(memory: UserMemory): Promise<UserMemory> {
   const response = await fetch(`${getBackendBaseURL()}/api/memory/import`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -122,6 +129,7 @@ export async function createMemoryFact(
 ): Promise<UserMemory> {
   const response = await fetch(`${getBackendBaseURL()}/api/memory/facts`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -138,6 +146,7 @@ export async function updateMemoryFact(
     `${getBackendBaseURL()}/api/memory/facts/${encodeURIComponent(factId)}`,
     {
       method: "PATCH",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

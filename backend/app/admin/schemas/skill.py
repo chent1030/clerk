@@ -48,3 +48,7 @@ class SkillListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class VisibleSkillsResponse(BaseModel):
+    skill_names: list[str]

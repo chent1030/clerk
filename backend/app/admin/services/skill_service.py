@@ -135,9 +135,7 @@ async def set_visibility(
     visible_user_ids: list[uuid.UUID],
 ) -> Skill:
     skill.visibility = visibility
-    await db.execute(
-        SkillVisibleUser.__table__.delete().where(SkillVisibleUser.skill_id == skill.id)
-    )
+    await db.execute(SkillVisibleUser.__table__.delete().where(SkillVisibleUser.skill_id == skill.id))
     if visibility == SkillVisibility.SPECIFIC_USERS and visible_user_ids:
         for uid in visible_user_ids:
             db.add(SkillVisibleUser(skill_id=skill.id, user_id=uid))
@@ -187,9 +185,7 @@ async def review_skill(
 
 async def delete_skill(db: AsyncSession, skill_id: uuid.UUID) -> Skill:
     skill = await get_skill(db, skill_id)
-    await db.execute(
-        SkillVisibleUser.__table__.delete().where(SkillVisibleUser.skill_id == skill.id)
-    )
+    await db.execute(SkillVisibleUser.__table__.delete().where(SkillVisibleUser.skill_id == skill.id))
     await db.delete(skill)
     await db.flush()
     return skill
@@ -198,3 +194,39 @@ async def delete_skill(db: AsyncSession, skill_id: uuid.UUID) -> Skill:
 async def get_visible_user_ids(db: AsyncSession, skill_id: uuid.UUID) -> list[str]:
     result = await db.execute(select(SkillVisibleUser.user_id).where(SkillVisibleUser.skill_id == skill_id))
     return [str(row[0]) for row in result.all()]
+
+
+async def list_visible_skills_for_user(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    user_role: str,
+    department_id: uuid.UUID | None,
+) -> list[str]:
+    query = select(Skill).where(Skill.status == SkillStatus.APPROVED)
+    skills_result = await db.execute(query)
+    all_skills = list(skills_result.scalars().all())
+
+    visible_names = []
+    for skill in all_skills:
+        if skill.visibility == SkillVisibility.COMPANY:
+            visible_names.append(skill.name)
+        elif skill.visibility == SkillVisibility.DEPARTMENT:
+            if user_role in ("super_admin", "dept_admin") or skill.department_id == department_id:
+                visible_names.append(skill.name)
+        elif skill.visibility == SkillVisibility.SPECIFIC_USERS:
+            if user_role == "super_admin":
+                visible_names.append(skill.name)
+                continue
+            result = await db.execute(
+                select(SkillVisibleUser).where(
+                    SkillVisibleUser.skill_id == skill.id,
+                    SkillVisibleUser.user_id == user_id,
+                )
+            )
+            if result.scalar_one_or_none():
+                visible_names.append(skill.name)
+        elif skill.visibility == SkillVisibility.PRIVATE:
+            if skill.author_id == user_id or user_role == "super_admin":
+                visible_names.append(skill.name)
+
+    return visible_names

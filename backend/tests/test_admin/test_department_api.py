@@ -25,9 +25,13 @@ async def test_list_departments_regular_user_forbidden(client, auth_headers):
 
 @pytest.mark.asyncio
 async def test_create_department(client, auth_headers):
-    resp = await client.post("/api/admin/departments", headers=auth_headers["super_admin"], json={
-        "name": "Marketing",
-    })
+    resp = await client.post(
+        "/api/admin/departments",
+        headers=auth_headers["super_admin"],
+        json={
+            "name": "Marketing",
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "Marketing"
@@ -37,19 +41,27 @@ async def test_create_department(client, auth_headers):
 @pytest.mark.asyncio
 async def test_create_department_with_parent(client, auth_headers, seed_data):
     parent_id = str(seed_data["department"].id)
-    resp = await client.post("/api/admin/departments", headers=auth_headers["super_admin"], json={
-        "name": "Backend Team",
-        "parent_id": parent_id,
-    })
+    resp = await client.post(
+        "/api/admin/departments",
+        headers=auth_headers["super_admin"],
+        json={
+            "name": "Backend Team",
+            "parent_id": parent_id,
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["parent_id"] == parent_id
 
 
 @pytest.mark.asyncio
 async def test_create_department_dept_admin_forbidden(client, auth_headers):
-    resp = await client.post("/api/admin/departments", headers=auth_headers["dept_admin"], json={
-        "name": "Should Fail",
-    })
+    resp = await client.post(
+        "/api/admin/departments",
+        headers=auth_headers["dept_admin"],
+        json={
+            "name": "Should Fail",
+        },
+    )
     assert resp.status_code == 403
 
 
@@ -71,6 +83,7 @@ async def test_get_department_dept_admin_own(client, auth_headers, seed_data):
 @pytest.mark.asyncio
 async def test_get_department_dept_admin_other_forbidden(client, auth_headers, db_session):
     from app.admin.models.department import Department
+
     other = Department(name="OtherDept")
     db_session.add(other)
     await db_session.flush()
@@ -89,9 +102,13 @@ async def test_get_department_not_found(client, auth_headers):
 @pytest.mark.asyncio
 async def test_update_department(client, auth_headers, seed_data):
     dept_id = str(seed_data["department"].id)
-    resp = await client.put(f"/api/admin/departments/{dept_id}", headers=auth_headers["super_admin"], json={
-        "name": "Engineering Updated",
-    })
+    resp = await client.put(
+        f"/api/admin/departments/{dept_id}",
+        headers=auth_headers["super_admin"],
+        json={
+            "name": "Engineering Updated",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["name"] == "Engineering Updated"
 
@@ -99,9 +116,13 @@ async def test_update_department(client, auth_headers, seed_data):
 @pytest.mark.asyncio
 async def test_update_department_dept_admin_forbidden(client, auth_headers, seed_data):
     dept_id = str(seed_data["department"].id)
-    resp = await client.put(f"/api/admin/departments/{dept_id}", headers=auth_headers["dept_admin"], json={
-        "name": "Should Fail",
-    })
+    resp = await client.put(
+        f"/api/admin/departments/{dept_id}",
+        headers=auth_headers["dept_admin"],
+        json={
+            "name": "Should Fail",
+        },
+    )
     assert resp.status_code == 403
 
 
@@ -115,6 +136,7 @@ async def test_delete_department_with_users_forbidden(client, auth_headers, seed
 @pytest.mark.asyncio
 async def test_delete_empty_department(client, auth_headers, db_session):
     from app.admin.models.department import Department
+
     empty = Department(name="Empty")
     db_session.add(empty)
     await db_session.flush()

@@ -207,11 +207,13 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
         if not config.enabled:
             return None
 
-        # Get thread ID from runtime context first, then fall back to LangGraph's configurable metadata
         thread_id = runtime.context.get("thread_id") if runtime.context else None
+        username = runtime.context.get("username") if runtime.context else None
         if thread_id is None:
             config_data = get_config()
             thread_id = config_data.get("configurable", {}).get("thread_id")
+            if username is None:
+                username = config_data.get("configurable", {}).get("username")
         if not thread_id:
             logger.debug("No thread_id in context, skipping memory update")
             return None
@@ -241,6 +243,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
             thread_id=thread_id,
             messages=filtered_messages,
             agent_name=self._agent_name,
+            username=username,
             correction_detected=correction_detected,
             reinforcement_detected=reinforcement_detected,
         )

@@ -12,7 +12,7 @@ from app.admin.deps import get_current_user, get_db, require_role
 from app.admin.minio import MinioClient
 from app.admin.models.skill import SkillStatus
 from app.admin.models.user import User, UserRole
-from app.admin.schemas.skill import SkillListResponse, SkillResponse, SkillReviewRequest, SkillUpdate, SkillVisibilityUpdate
+from app.admin.schemas.skill import SkillListResponse, SkillResponse, SkillReviewRequest, SkillUpdate, SkillVisibilityUpdate, VisibleSkillsResponse
 from app.admin.services import skill_service
 
 router = APIRouter(prefix="/api/admin/skills", tags=["admin-skills"])
@@ -22,6 +22,7 @@ SKILLS_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.pa
 
 def _get_minio_client() -> MinioClient:
     from app.gateway.app import get_app
+
     app = get_app()
     return app.state.minio_client
 
@@ -61,6 +62,12 @@ def _extract_zip_to_skills(zip_data: bytes, skill_name: str) -> None:
                     dst.write(src.read())
         else:
             zf.extractall(skill_path)
+
+
+def _remove_skill_from_custom(skill_name: str) -> None:
+    skill_path = os.path.join(SKILLS_ROOT, skill_name)
+    if os.path.exists(skill_path):
+        shutil.rmtree(skill_path)
 
 
 def _skill_to_response(skill, author_name=None, department_name=None, visible_user_ids=None) -> SkillResponse:
@@ -118,10 +125,31 @@ async def upload_skill(
     object_key = minio_client.build_skill_key(user.department_id, skill_id, f"{name}.zip")
     minio_client.upload(object_key, file_data)
     skill = await skill_service.upload_skill(
-        db, name, description, version, user.id, user.department_id,
-        minio_client.bucket, object_key, len(file_data),
+        db,
+        name,
+        description,
+        version,
+        user.id,
+        user.department_id,
+        minio_client.bucket,
+        object_key,
+        len(file_data),
     )
     return _skill_to_response(skill)
+
+
+@router.get("/visible", response_model=VisibleSkillsResponse)
+async def list_visible_skills(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    names = await skill_service.list_visible_skills_for_user(
+        db,
+        user.id,
+        user.role.value,
+        user.department_id,
+    )
+    return VisibleSkillsResponse(skill_names=names)
 
 
 @router.get("/{skill_id}", response_model=SkillResponse)
@@ -143,11 +171,7 @@ async def download_skill(
     db: AsyncSession = Depends(get_db),
 ):
     skill = await skill_service.get_skill(db, skill_id)
-    can_access = (
-        user.role == UserRole.SUPER_ADMIN
-        or user.id == skill.author_id
-        or user.department_id == skill.department_id
-    )
+    can_access = user.role == UserRole.SUPER_ADMIN or user.id == skill.author_id or user.department_id == skill.department_id
     if not can_access:
         await skill_service.check_skill_visibility(db, skill, user.id, user.role, user.department_id)
     minio_client = _get_minio_client()
@@ -226,7 +250,15 @@ async def review_skill(
     skill = await skill_service.get_skill(db, skill_id)
     updated = await skill_service.review_skill(db, skill, user.id, req.action, req.comment)
     if req.action == "approve":
-        _extract_skill_to_custom(updated.name)
+        minio_client = _get_minio_client()
+        zip_data = minio_client.download(updated.minio_object_key)
+        _extract_zip_to_skills(zip_data, updated.name)
+        try:
+            from deerflow.agents.lead_agent.prompt import refresh_skills_system_prompt_cache_async
+
+            await refresh_skills_system_prompt_cache_async()
+        except Exception:
+            pass
     return _skill_to_response(updated)
 
 
@@ -245,4 +277,6 @@ async def delete_skill(
         minio_client.delete(deleted.minio_object_key)
     except Exception:
         pass
+    if deleted.status.value == "approved":
+        _remove_skill_from_custom(deleted.name)
     return {"message": "Skill deleted"}

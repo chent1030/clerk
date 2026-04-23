@@ -1,4 +1,6 @@
 import asyncio
+import io
+import zipfile
 from collections.abc import AsyncGenerator
 from unittest.mock import MagicMock, patch
 
@@ -103,8 +105,12 @@ async def seed_data(db_session: AsyncSession):
 
 def _make_auth_headers(user: User) -> dict:
     token = create_access_token(
-        user.id, user.username, user.role.value,
-        user.department_id, "default", TEST_JWT_CONFIG,
+        user.id,
+        user.username,
+        user.role.value,
+        user.department_id,
+        "default",
+        TEST_JWT_CONFIG,
     )
     return {"Authorization": f"Bearer {token}"}
 
@@ -118,13 +124,20 @@ def auth_headers(seed_data):
     }
 
 
+def _make_valid_zip_bytes(name: str = "skill") -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(f"{name}/SKILL.md", "# Test Skill\n")
+    return buf.getvalue()
+
+
 def _make_mock_minio():
     m = MagicMock()
     m.bucket = "test-bucket"
     m.build_skill_key.return_value = "skills/test/skill/file.zip"
     m.upload.return_value = None
     m.get_presigned_url.return_value = "http://minio.local/test-bucket/skills/test/skill/file.zip"
-    m.download.return_value = b"PK\x03\x04fake-zip-content"
+    m.download.return_value = _make_valid_zip_bytes()
     m.delete.return_value = None
     return m
 
@@ -147,9 +160,13 @@ async def client(db_session: AsyncSession, seed_data) -> AsyncGenerator[AsyncCli
     mock_config = MagicMock()
     mock_config.admin = TEST_ADMIN_CONFIG
 
-    with patch("app.admin.deps.get_app_config", return_value=mock_config), \
-         patch("app.admin.routers.auth.get_app_config", return_value=mock_config), \
-         patch("app.admin.routers.skills._get_minio_client", return_value=mock_minio):
+    with (
+        patch("app.admin.deps.get_app_config", return_value=mock_config),
+        patch("app.admin.routers.auth.get_app_config", return_value=mock_config),
+        patch("app.admin.routers.skills._get_minio_client", return_value=mock_minio),
+        patch("app.admin.routers.skills._extract_zip_to_skills"),
+        patch("app.admin.routers.skills._remove_skill_from_custom"),
+    ):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
             yield c

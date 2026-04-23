@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Modal, Form, Input, Select, message } from 'antd';
 import { useCreateUser, useUpdateUser } from '../../hooks/useUsers';
+import { useDepartmentOptions } from '../../hooks/useDepartments';
 import { useAuthStore } from '../../stores/auth';
 import { UserRole } from '../../types';
 import type { User } from '../../types';
@@ -16,6 +17,7 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const { user: currentUser } = useAuthStore();
+  const { options: deptOptions } = useDepartmentOptions();
   const isEdit = !!user;
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
 
@@ -27,6 +29,7 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
           display_name: user.display_name,
           email: user.email,
           role: user.role,
+          department_id: user.department_id || undefined,
         });
       } else {
         form.resetFields();
@@ -37,13 +40,21 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
   const onFinish = async (values: Record<string, string>) => {
     try {
       if (isEdit) {
+        const payload: Record<string, unknown> = {
+          display_name: values.display_name,
+          email: values.email,
+          role: values.role,
+        };
+        if (isSuperAdmin) {
+          if (values.department_id) {
+            payload.department_id = values.department_id;
+          } else if (user?.department_id) {
+            payload.clear_department = true;
+          }
+        }
         await updateUser.mutateAsync({
           id: user!.id,
-          data: {
-            display_name: values.display_name,
-            email: values.email,
-            role: values.role,
-          },
+          data: payload as Parameters<typeof updateUser.mutateAsync>[0]['data'],
         });
         message.success('用户已更新');
       } else {
@@ -53,6 +64,7 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
           display_name: values.display_name,
           email: values.email,
           role: values.role,
+          department_id: values.department_id || undefined,
         });
         message.success('用户已创建');
       }
@@ -94,6 +106,15 @@ export default function UserFormModal({ open, user, onClose }: UserFormModalProp
         <Form.Item name="email" label="邮箱">
           <Input />
         </Form.Item>
+        {isSuperAdmin && (
+          <Form.Item name="department_id" label="所属部门">
+            <Select
+              placeholder="请选择部门"
+              allowClear
+              options={deptOptions}
+            />
+          </Form.Item>
+        )}
         <Form.Item name="role" label="角色" rules={[{ required: true }]}>
           <Select options={roleOptions} />
         </Form.Item>
