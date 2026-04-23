@@ -199,6 +199,8 @@ export function useThreadStream({
     runMetadataStorageRef.current = getRunMetadataStorage();
   }
 
+  const isValidThreadId = typeof onStreamThreadId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(onStreamThreadId);
+
   const thread = useStream<AgentThreadState>({
     client: getAPIClient(isMock),
     assistantId: "lead_agent",
@@ -206,7 +208,7 @@ export function useThreadStream({
     reconnectOnMount: runMetadataStorageRef.current
       ? () => runMetadataStorageRef.current!
       : false,
-    fetchStateHistory: { limit: 1 },
+    fetchStateHistory: isValidThreadId ? { limit: 1 } : false,
     onCreated(meta) {
       handleStreamStart(meta.thread_id);
       setOnStreamThreadId(meta.thread_id);
