@@ -13,6 +13,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import UserListPage from './pages/users/UserListPage';
 import SkillListPage from './pages/skills/SkillListPage';
 import DepartmentPage from './pages/departments/DepartmentPage';
+import ThreadListPage from './pages/threads/ThreadListPage';
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function App() {
               <Route path="skills" element={<SkillListPage />} />
               <Route path="skills/review" element={<RoleGuard roles={[UserRole.SUPER_ADMIN]}><SkillListPage showReview /></RoleGuard>} />
               <Route path="departments" element={<RoleGuard roles={[UserRole.SUPER_ADMIN]}><DepartmentPage /></RoleGuard>} />
+              <Route path="threads" element={<RoleGuard roles={[UserRole.SUPER_ADMIN]}><ThreadListPage /></RoleGuard>} />
             </Route>
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>

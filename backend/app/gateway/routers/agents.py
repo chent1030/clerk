@@ -5,9 +5,11 @@ import re
 import shutil
 
 import yaml
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.admin.deps import get_current_user
+from app.admin.models.user import User
 from deerflow.config.agents_config import AgentConfig, list_custom_agents, load_agent_config, load_agent_soul
 from deerflow.config.paths import get_paths
 
@@ -309,14 +311,14 @@ class UserProfileUpdateRequest(BaseModel):
     summary="Get User Profile",
     description="Read the global USER.md file that is injected into all custom agents.",
 )
-async def get_user_profile() -> UserProfileResponse:
+async def get_user_profile(current_user: User = Depends(get_current_user)) -> UserProfileResponse:
     """Return the current USER.md content.
 
     Returns:
         UserProfileResponse with content=None if USER.md does not exist yet.
     """
     try:
-        user_md_path = get_paths().user_md_file
+        user_md_path = get_paths().user_profile_file(current_user.username)
         if not user_md_path.exists():
             return UserProfileResponse(content=None)
         raw = user_md_path.read_text(encoding="utf-8").strip()
@@ -332,7 +334,7 @@ async def get_user_profile() -> UserProfileResponse:
     summary="Update User Profile",
     description="Write the global USER.md file that is injected into all custom agents.",
 )
-async def update_user_profile(request: UserProfileUpdateRequest) -> UserProfileResponse:
+async def update_user_profile(request: UserProfileUpdateRequest, current_user: User = Depends(get_current_user)) -> UserProfileResponse:
     """Create or overwrite the global USER.md.
 
     Args:
@@ -343,9 +345,10 @@ async def update_user_profile(request: UserProfileUpdateRequest) -> UserProfileR
     """
     try:
         paths = get_paths()
-        paths.base_dir.mkdir(parents=True, exist_ok=True)
-        paths.user_md_file.write_text(request.content, encoding="utf-8")
-        logger.info(f"Updated USER.md at {paths.user_md_file}")
+        user_md_path = paths.user_profile_file(current_user.username)
+        user_md_path.parent.mkdir(parents=True, exist_ok=True)
+        user_md_path.write_text(request.content, encoding="utf-8")
+        logger.info(f"Updated USER.md at {user_md_path}")
         return UserProfileResponse(content=request.content or None)
     except Exception as e:
         logger.error(f"Failed to update user profile: {e}", exc_info=True)

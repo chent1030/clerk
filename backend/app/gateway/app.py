@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.admin.config import AdminConfig
 from app.admin.minio import MinioClient
+from app.admin.routers import audit_threads as admin_audit_threads
 from app.admin.routers import auth as admin_auth
 from app.admin.routers import departments as admin_depts
 from app.admin.routers import skills as admin_skills
@@ -223,6 +224,7 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     app.include_router(admin_users.router)
     app.include_router(admin_depts.router)
     app.include_router(admin_skills.router)
+    app.include_router(admin_audit_threads.router)
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:

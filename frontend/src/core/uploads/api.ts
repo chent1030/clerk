@@ -1,8 +1,4 @@
-/**
- * API functions for file uploads
- */
-
-import { getBackendBaseURL } from "../config";
+import { authFetch } from "../api/auth-fetch";
 
 export interface UploadedFileInfo {
   filename: string;
@@ -37,9 +33,6 @@ async function readErrorDetail(
   return error.detail ?? fallback;
 }
 
-/**
- * Upload files to a thread
- */
 export async function uploadFiles(
   threadId: string,
   files: File[],
@@ -50,8 +43,8 @@ export async function uploadFiles(
     formData.append("files", file);
   });
 
-  const response = await fetch(
-    `${getBackendBaseURL()}/api/threads/${threadId}/uploads`,
+  const response = await authFetch(
+    `/api/threads/${threadId}/uploads`,
     {
       method: "POST",
       body: formData,
@@ -65,14 +58,11 @@ export async function uploadFiles(
   return response.json();
 }
 
-/**
- * List all uploaded files for a thread
- */
 export async function listUploadedFiles(
   threadId: string,
 ): Promise<ListFilesResponse> {
-  const response = await fetch(
-    `${getBackendBaseURL()}/api/threads/${threadId}/uploads/list`,
+  const response = await authFetch(
+    `/api/threads/${threadId}/uploads/list`,
   );
 
   if (!response.ok) {
@@ -84,15 +74,12 @@ export async function listUploadedFiles(
   return response.json();
 }
 
-/**
- * Delete an uploaded file
- */
 export async function deleteUploadedFile(
   threadId: string,
   filename: string,
 ): Promise<{ success: boolean; message: string }> {
-  const response = await fetch(
-    `${getBackendBaseURL()}/api/threads/${threadId}/uploads/${filename}`,
+  const response = await authFetch(
+    `/api/threads/${threadId}/uploads/${filename}`,
     {
       method: "DELETE",
     },

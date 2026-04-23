@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 from langchain_core.messages import HumanMessage
 
+from app.admin.services import thread_service as audit_thread_service
 from app.gateway.deps import get_checkpointer, get_run_manager, get_store, get_stream_bridge
 from deerflow.runtime import (
     END_SENTINEL,
@@ -92,6 +93,19 @@ def normalize_input(raw_input: dict[str, Any] | None) -> dict[str, Any]:
                 converted.append(msg)
         return {**raw_input, "messages": converted}
     return raw_input
+
+
+def _extract_last_human_message(graph_input: dict) -> str | None:
+    messages = graph_input.get("messages", [])
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            content = msg.content
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts = [p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"]
+                return " ".join(parts) if parts else None
+    return None
 
 
 _DEFAULT_ASSISTANT_ID = "lead_agent"
@@ -236,6 +250,70 @@ async def _sync_thread_title_after_run(
         logger.debug("Failed to sync title for thread %s (non-fatal)", thread_id, exc_info=True)
 
 
+async def _record_assistant_message_audit(
+    task: asyncio.Task,
+    thread_id: str,
+    request: Request,
+) -> None:
+    try:
+        await task
+    except Exception:
+        return
+
+    try:
+        checkpointer = get_checkpointer(request)
+        config = {"configurable": {"thread_id": thread_id}}
+        ckpt_tuple = await checkpointer.aget_tuple(config)
+        if not ckpt_tuple:
+            return
+
+        checkpoint = getattr(ckpt_tuple, "checkpoint", {}) or {}
+        channel_values = checkpoint.get("channel_values", {})
+        messages = channel_values.get("messages", [])
+
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        async with async_sessionmaker(request.app.state.db_engine)() as db:
+            last_ai_msg = None
+            for msg in reversed(messages):
+                role = ""
+                content = ""
+                raw = None
+                if hasattr(msg, "type"):
+                    role = msg.type
+                    content = str(msg.content) if isinstance(msg.content, str) else str(msg.content)
+                    raw = {"type": msg.type, "content": str(msg.content)}
+                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                        raw["tool_calls"] = [{"name": tc.get("name", ""), "args": tc.get("args", {})} for tc in msg.tool_calls]
+                elif isinstance(msg, dict):
+                    role = msg.get("type", "")
+                    content = str(msg.get("content", ""))
+                    raw = msg
+                else:
+                    continue
+
+                if role in ("ai", "assistant"):
+                    last_ai_msg = (content, raw)
+                    break
+
+            if last_ai_msg:
+                content, raw = last_ai_msg
+                await audit_thread_service.record_message(
+                    db,
+                    thread_id=thread_id,
+                    role="assistant",
+                    content=content,
+                    raw_content=raw,
+                )
+
+            title = channel_values.get("title")
+            if title:
+                await audit_thread_service.update_thread_title(db, thread_id, title)
+
+    except Exception:
+        logger.debug("Failed to record assistant message audit for thread %s", thread_id, exc_info=True)
+
+
 async def start_run(
     body: Any,
     thread_id: str,
@@ -320,9 +398,22 @@ async def start_run(
                     current_user.role.value,
                     current_user.department_id,
                 )
+                await audit_thread_service.create_thread_record(
+                    db,
+                    thread_id=thread_id,
+                    user_id=current_user.id,
+                )
+                user_msg = _extract_last_human_message(graph_input)
+                if user_msg:
+                    await audit_thread_service.record_message(
+                        db,
+                        thread_id=thread_id,
+                        role="user",
+                        content=user_msg,
+                    )
             configurable.setdefault("visible_skills", visible_names)
         except Exception:
-            logger.debug("Failed to fetch visible_skills for user %s", current_user.username)
+            logger.debug("Failed to init thread audit or fetch skills for thread %s", thread_id, exc_info=True)
 
     stream_modes = normalize_stream_modes(body.stream_mode)
 
@@ -349,6 +440,12 @@ async def start_run(
     # correct title instead of an empty values dict.
     if store is not None:
         asyncio.create_task(_sync_thread_title_after_run(task, thread_id, checkpointer, store))
+
+    if current_user is not None:
+        try:
+            asyncio.create_task(_record_assistant_message_audit(task, thread_id, request))
+        except Exception:
+            pass
 
     return record
 

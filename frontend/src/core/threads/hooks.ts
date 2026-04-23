@@ -1,5 +1,4 @@
 import type { AIMessage, Message } from "@langchain/langgraph-sdk";
-import type { ThreadsClient } from "@langchain/langgraph-sdk/client";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -7,8 +6,7 @@ import { toast } from "sonner";
 
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 
-import { getAPIClient } from "../api";
-import { getBackendBaseURL } from "../config";
+import { getAPIClient, authFetch } from "../api";
 import { useI18n } from "../i18n/hooks";
 import type { FileInMessage } from "../messages/utils";
 import type { LocalSettings } from "../settings";
@@ -523,68 +521,50 @@ export function useThreadStream({
   return [mergedThread, sendMessage, isUploading] as const;
 }
 
+async function fetchGatewayThreads(
+  params: { limit?: number; offset?: number } = {},
+): Promise<AgentThread[]> {
+  const response = await authFetch("/api/threads/search", {
+    method: "POST",
+    body: JSON.stringify({
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch threads: ${response.status}`);
+  }
+  const data = await response.json();
+  return data.map(
+    (t: {
+      thread_id: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      metadata: Record<string, unknown>;
+      values: { title?: string };
+    }) =>
+      ({
+        thread_id: t.thread_id,
+        status: t.status,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        metadata: t.metadata,
+        values: t.values || {},
+      }) as AgentThread,
+  );
+}
+
 export function useThreads(
-  params: Parameters<ThreadsClient["search"]>[0] = {
-    limit: 50,
-    sortBy: "updated_at",
-    sortOrder: "desc",
-    select: ["thread_id", "updated_at", "values"],
-  },
+  params: { limit?: number; offset?: number } = {},
 ) {
-  const apiClient = getAPIClient();
   return useQuery<AgentThread[]>({
     queryKey: ["threads", "search", params],
     queryFn: async () => {
-      const maxResults = params.limit;
-      const initialOffset = params.offset ?? 0;
-      const DEFAULT_PAGE_SIZE = 50;
-
-      // Preserve prior semantics: if a non-positive limit is explicitly provided,
-      // delegate to a single search call with the original parameters.
-      if (maxResults !== undefined && maxResults <= 0) {
-        const response =
-          await apiClient.threads.search<AgentThreadState>(params);
-        return response as AgentThread[];
-      }
-
-      const pageSize =
-        typeof maxResults === "number" && maxResults > 0
-          ? Math.min(DEFAULT_PAGE_SIZE, maxResults)
-          : DEFAULT_PAGE_SIZE;
-
-      const threads: AgentThread[] = [];
-      let offset = initialOffset;
-
-      while (true) {
-        if (typeof maxResults === "number" && threads.length >= maxResults) {
-          break;
-        }
-
-        const currentLimit =
-          typeof maxResults === "number"
-            ? Math.min(pageSize, maxResults - threads.length)
-            : pageSize;
-
-        if (typeof maxResults === "number" && currentLimit <= 0) {
-          break;
-        }
-
-        const response = (await apiClient.threads.search<AgentThreadState>({
-          ...params,
-          limit: currentLimit,
-          offset,
-        })) as AgentThread[];
-
-        threads.push(...response);
-
-        if (response.length < currentLimit) {
-          break;
-        }
-
-        offset += response.length;
-      }
-
-      return threads;
+      return fetchGatewayThreads({
+        limit: params.limit ?? 50,
+        offset: params.offset ?? 0,
+      });
     },
     refetchOnWindowFocus: false,
   });
@@ -597,8 +577,8 @@ export function useDeleteThread() {
     mutationFn: async ({ threadId }: { threadId: string }) => {
       await apiClient.threads.delete(threadId);
 
-      const response = await fetch(
-        `${getBackendBaseURL()}/api/threads/${encodeURIComponent(threadId)}`,
+      const response = await authFetch(
+        `/api/threads/${encodeURIComponent(threadId)}`,
         {
           method: "DELETE",
         },

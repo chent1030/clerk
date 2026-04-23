@@ -321,7 +321,7 @@ You are {agent_name}, an open-source super agent.
 </role>
 
 {soul}
-{memory_context}
+{memory_context}{user_profile}
 
 <thinking_style>
 - Think concisely and strategically about the user's request BEFORE taking action
@@ -504,6 +504,23 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 """
 
 
+def _load_user_profile(username: str | None) -> str:
+    if not username:
+        return ""
+    try:
+        from deerflow.config.paths import get_paths
+
+        paths = get_paths()
+        user_md_path = paths.user_profile_file(username)
+        if user_md_path.exists():
+            content = user_md_path.read_text(encoding="utf-8").strip()
+            if content:
+                return f"<user-profile>\n{content}\n</user-profile>\n"
+    except Exception:
+        pass
+    return ""
+
+
 def _get_memory_context(agent_name: str | None = None, username: str | None = None) -> str:
     """Get memory context for injection into system prompt.
 
@@ -684,6 +701,7 @@ def apply_prompt_template(
 ) -> str:
     # Get memory context
     memory_context = _get_memory_context(agent_name, username=username)
+    user_profile = _load_user_profile(username)
 
     # Include subagent section only if enabled (from runtime parameter)
     n = max_concurrent_subagents
@@ -725,6 +743,7 @@ def apply_prompt_template(
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,
         memory_context=memory_context,
+        user_profile=user_profile,
         subagent_section=subagent_section,
         subagent_reminder=subagent_reminder,
         subagent_thinking=subagent_thinking,

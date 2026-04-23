@@ -17,6 +17,7 @@ from app.admin.deps import get_db
 from app.admin.models import Base
 from app.admin.models.department import Department
 from app.admin.models.user import User, UserRole, UserStatus
+from app.admin.routers import audit_threads as admin_audit_threads
 from app.admin.routers import auth as admin_auth
 from app.admin.routers import departments as admin_depts
 from app.admin.routers import skills as admin_skills
@@ -149,6 +150,7 @@ async def client(db_session: AsyncSession, seed_data) -> AsyncGenerator[AsyncCli
     app.include_router(admin_users.router)
     app.include_router(admin_depts.router)
     app.include_router(admin_skills.router)
+    app.include_router(admin_audit_threads.router)
 
     async def override_get_db():
         yield db_session

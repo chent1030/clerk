@@ -130,6 +130,9 @@ class Paths:
         """Path to the global user profile file: `{base_dir}/USER.md`."""
         return self.base_dir / "USER.md"
 
+    def user_profile_file(self, username: str) -> Path:
+        return self.base_dir / "profiles" / _validate_username(username) / "USER.md"
+
     @property
     def agents_dir(self) -> Path:
         """Root directory for all custom agents: `{base_dir}/agents/`."""

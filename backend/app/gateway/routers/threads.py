@@ -17,9 +17,15 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import select as sa_select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.admin.deps import get_current_user, get_db
+from app.admin.models.thread import Thread as ThreadModel
+from app.admin.models.user import User, UserRole
+from app.admin.services import thread_service
 from app.gateway.deps import get_checkpointer, get_store
 from deerflow.config.paths import Paths, get_paths
 from deerflow.runtime import serialize_channel_values
@@ -215,12 +221,24 @@ def _derive_thread_status(checkpoint_tuple) -> str:
 
 
 @router.delete("/{thread_id}", response_model=ThreadDeleteResponse)
-async def delete_thread_data(thread_id: str, request: Request) -> ThreadDeleteResponse:
+async def delete_thread_data(
+    thread_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ThreadDeleteResponse:
     """Delete local persisted filesystem data for a thread.
 
     Cleans DeerFlow-managed thread directories, removes checkpoint data,
     and removes the thread record from the Store.
     """
+    thread_record = await thread_service.get_thread(db, thread_id)
+    if thread_record and thread_record.user_id != current_user.id:
+        if current_user.role.value != UserRole.SUPER_ADMIN.value:
+            raise HTTPException(status_code=403, detail="无权删除此对话")
+    if thread_record:
+        await thread_service.soft_delete_thread(db, thread_id)
+
     # Clean local filesystem
     response = _delete_thread_data(thread_id)
 
@@ -245,7 +263,12 @@ async def delete_thread_data(thread_id: str, request: Request) -> ThreadDeleteRe
 
 
 @router.post("", response_model=ThreadResponse)
-async def create_thread(body: ThreadCreateRequest, request: Request) -> ThreadResponse:
+async def create_thread(
+    body: ThreadCreateRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ThreadResponse:
     """Create a new thread.
 
     The thread record is written to the Store (for fast listing) and an
@@ -261,6 +284,11 @@ async def create_thread(body: ThreadCreateRequest, request: Request) -> ThreadRe
     if store is not None:
         existing_record = await _store_get(store, thread_id)
         if existing_record is not None:
+            await thread_service.create_thread_record(
+                db,
+                thread_id=thread_id,
+                user_id=current_user.id,
+            )
             return ThreadResponse(
                 thread_id=thread_id,
                 status=existing_record.get("status", "idle"),
@@ -304,6 +332,12 @@ async def create_thread(body: ThreadCreateRequest, request: Request) -> ThreadRe
         logger.exception("Failed to create checkpoint for thread %s", thread_id)
         raise HTTPException(status_code=500, detail="Failed to create thread")
 
+    await thread_service.create_thread_record(
+        db,
+        thread_id=thread_id,
+        user_id=current_user.id,
+    )
+
     logger.info("Thread created: %s", thread_id)
     return ThreadResponse(
         thread_id=thread_id,
@@ -315,7 +349,12 @@ async def create_thread(body: ThreadCreateRequest, request: Request) -> ThreadRe
 
 
 @router.post("/search", response_model=list[ThreadResponse])
-async def search_threads(body: ThreadSearchRequest, request: Request) -> list[ThreadResponse]:
+async def search_threads(
+    body: ThreadSearchRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[ThreadResponse]:
     """Search and list threads.
 
     Two-phase approach:
@@ -415,13 +454,29 @@ async def search_threads(body: ThreadSearchRequest, request: Request) -> list[Th
     if body.status:
         results = [r for r in results if r.status == body.status]
 
+    if current_user.role.value != UserRole.SUPER_ADMIN.value:
+        user_thread_ids_result = await db.execute(sa_select(ThreadModel.id).where(ThreadModel.user_id == current_user.id))
+        user_thread_ids = {row[0] for row in user_thread_ids_result}
+        results = [r for r in results if r.thread_id in user_thread_ids]
+
     results.sort(key=lambda r: r.updated_at, reverse=True)
     return results[body.offset : body.offset + body.limit]
 
 
 @router.patch("/{thread_id}", response_model=ThreadResponse)
-async def patch_thread(thread_id: str, body: ThreadPatchRequest, request: Request) -> ThreadResponse:
+async def patch_thread(
+    thread_id: str,
+    body: ThreadPatchRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ThreadResponse:
     """Merge metadata into a thread record."""
+    thread_record = await thread_service.get_thread(db, thread_id)
+    if thread_record and thread_record.user_id != current_user.id:
+        if current_user.role.value != UserRole.SUPER_ADMIN.value:
+            raise HTTPException(status_code=403, detail="无权访问此对话")
+
     store = get_store(request)
     if store is None:
         raise HTTPException(status_code=503, detail="Store not available")
@@ -506,12 +561,22 @@ async def get_thread(thread_id: str, request: Request) -> ThreadResponse:
 
 
 @router.get("/{thread_id}/state", response_model=ThreadStateResponse)
-async def get_thread_state(thread_id: str, request: Request) -> ThreadStateResponse:
+async def get_thread_state(
+    thread_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ThreadStateResponse:
     """Get the latest state snapshot for a thread.
 
     Channel values are serialized to ensure LangChain message objects
     are converted to JSON-safe dicts.
     """
+    thread_record = await thread_service.get_thread(db, thread_id)
+    if thread_record and thread_record.user_id != current_user.id:
+        if current_user.role.value != UserRole.SUPER_ADMIN.value:
+            raise HTTPException(status_code=403, detail="无权访问此对话")
+
     checkpointer = get_checkpointer(request)
 
     config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
@@ -555,13 +620,24 @@ async def get_thread_state(thread_id: str, request: Request) -> ThreadStateRespo
 
 
 @router.post("/{thread_id}/state", response_model=ThreadStateResponse)
-async def update_thread_state(thread_id: str, body: ThreadStateUpdateRequest, request: Request) -> ThreadStateResponse:
+async def update_thread_state(
+    thread_id: str,
+    body: ThreadStateUpdateRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ThreadStateResponse:
     """Update thread state (e.g. for human-in-the-loop resume or title rename).
 
     Writes a new checkpoint that merges *body.values* into the latest
     channel values, then syncs any updated ``title`` field back to the Store
     so that ``/threads/search`` reflects the change immediately.
     """
+    thread_record = await thread_service.get_thread(db, thread_id)
+    if thread_record and thread_record.user_id != current_user.id:
+        if current_user.role.value != UserRole.SUPER_ADMIN.value:
+            raise HTTPException(status_code=403, detail="无权访问此对话")
+
     checkpointer = get_checkpointer(request)
     store = get_store(request)
 
@@ -638,8 +714,19 @@ async def update_thread_state(thread_id: str, body: ThreadStateUpdateRequest, re
 
 
 @router.post("/{thread_id}/history", response_model=list[HistoryEntry])
-async def get_thread_history(thread_id: str, body: ThreadHistoryRequest, request: Request) -> list[HistoryEntry]:
+async def get_thread_history(
+    thread_id: str,
+    body: ThreadHistoryRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[HistoryEntry]:
     """Get checkpoint history for a thread."""
+    thread_record = await thread_service.get_thread(db, thread_id)
+    if thread_record and thread_record.user_id != current_user.id:
+        if current_user.role.value != UserRole.SUPER_ADMIN.value:
+            raise HTTPException(status_code=403, detail="无权访问此对话")
+
     checkpointer = get_checkpointer(request)
 
     config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}

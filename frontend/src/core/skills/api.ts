@@ -1,29 +1,18 @@
-import { getBackendBaseURL } from "@/core/config";
+import { authFetch } from "@/core/api/auth-fetch";
 
 import type { Skill } from "./type";
 
 export async function loadSkills() {
-  const skills = await fetch(`${getBackendBaseURL()}/api/skills`, {
-    credentials: "include",
-  });
+  const skills = await authFetch("/api/skills");
   const json = await skills.json();
   return json.skills as Skill[];
 }
 
 export async function enableSkill(skillName: string, enabled: boolean) {
-  const response = await fetch(
-    `${getBackendBaseURL()}/api/skills/${skillName}`,
-    {
-      method: "PUT",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        enabled,
-      }),
-    },
-  );
+  const response = await authFetch(`/api/skills/${skillName}`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
   return response.json();
 }
 
@@ -41,25 +30,16 @@ export interface InstallSkillResponse {
 export async function installSkill(
   request: InstallSkillRequest,
 ): Promise<InstallSkillResponse> {
-  const response = await fetch(`${getBackendBaseURL()}/api/skills/install`, {
+  const response = await authFetch("/api/skills/install", {
     method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(request),
   });
 
   if (!response.ok) {
-    // Handle HTTP error responses (4xx, 5xx)
     const errorData = await response.json().catch(() => ({}));
     const errorMessage =
       errorData.detail ?? `HTTP ${response.status}: ${response.statusText}`;
-    return {
-      success: false,
-      skill_name: "",
-      message: errorMessage,
-    };
+    return { success: false, skill_name: "", message: errorMessage };
   }
 
   return response.json();

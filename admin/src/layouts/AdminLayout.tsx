@@ -8,6 +8,7 @@ import {
   RobotOutlined,
   AuditOutlined,
   LogoutOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useAuthStore } from '../stores/auth';
@@ -43,6 +44,11 @@ export default function AdminLayout() {
       key: '/admin/departments',
       icon: <ApartmentOutlined />,
       label: '部门管理',
+    });
+    menuItems!.push({
+      key: '/admin/threads',
+      icon: <MessageOutlined />,
+      label: '对话审计',
     });
   }
 
