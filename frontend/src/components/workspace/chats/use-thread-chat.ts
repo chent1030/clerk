@@ -1,13 +1,12 @@
 "use client";
 
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { uuid } from "@/core/utils/uuid";
 
 export function useThreadChat() {
   const { thread_id: threadIdFromPath } = useParams<{ thread_id: string }>();
-  const pathname = usePathname();
 
   const searchParams = useSearchParams();
   const [threadId, setThreadId] = useState(() => {
@@ -19,14 +18,16 @@ export function useThreadChat() {
   );
 
   useEffect(() => {
-    if (pathname.endsWith("/new")) {
+    if (threadIdFromPath === "new") {
       setIsNewThread(true);
       setThreadId(uuid());
       return;
     }
-    setIsNewThread(false);
-    setThreadId(threadIdFromPath);
-  }, [pathname, threadIdFromPath]);
+    if (threadIdFromPath && threadIdFromPath !== "new") {
+      setIsNewThread(false);
+      setThreadId(threadIdFromPath);
+    }
+  }, [threadIdFromPath]);
   const isMock = searchParams.get("mock") === "true";
   return { threadId, setThreadId, isNewThread, setIsNewThread, isMock };
 }
