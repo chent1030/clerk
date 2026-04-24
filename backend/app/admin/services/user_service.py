@@ -39,6 +39,7 @@ async def list_users(
     page_size: int,
     search: str | None = None,
     department_id: uuid.UUID | None = None,
+    dept_ids: list[uuid.UUID] | None = None,
 ) -> tuple[list[User], int]:
     query = select(User)
     count_query = select(func.count()).select_from(User)
@@ -46,7 +47,10 @@ async def list_users(
         condition = or_(User.username.ilike(f"%{search}%"), User.display_name.ilike(f"%{search}%"), User.email.ilike(f"%{search}%"))
         query = query.where(condition)
         count_query = count_query.where(condition)
-    if department_id:
+    if dept_ids:
+        query = query.where(User.department_id.in_(dept_ids))
+        count_query = count_query.where(User.department_id.in_(dept_ids))
+    elif department_id:
         query = query.where(User.department_id == department_id)
         count_query = count_query.where(User.department_id == department_id)
     total_result = await db.execute(count_query)

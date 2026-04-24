@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.admin.deps import get_db, require_role
 from app.admin.models.user import User, UserRole
 from app.admin.schemas.user import UserCreate, UserListResponse, UserResponse, UserStatusUpdate, UserUpdate
-from app.admin.services import user_service
+from app.admin.services import department_service, user_service
 
 router = APIRouter(prefix="/api/admin/users", tags=["admin-users"])
 
@@ -33,9 +33,13 @@ async def list_users(
     current_user: User = Depends(require_role(UserRole.SUPER_ADMIN, UserRole.DEPT_ADMIN)),
     db: AsyncSession = Depends(get_db),
 ):
-    if current_user.role == UserRole.DEPT_ADMIN:
-        department_id = current_user.department_id
-    users, total = await user_service.list_users(db, page, page_size, search, department_id)
+    if current_user.role == UserRole.DEPT_ADMIN and current_user.department_id:
+        dept_ids = await department_service.get_subtree_department_ids(db, current_user.department_id)
+        users, total = await user_service.list_users(db, page, page_size, search, dept_ids=dept_ids)
+    elif current_user.role == UserRole.DEPT_ADMIN:
+        users, total = await user_service.list_users(db, page, page_size, search)
+    else:
+        users, total = await user_service.list_users(db, page, page_size, search, department_id)
     return UserListResponse(
         users=[_user_to_response(u) for u in users],
         total=total,
