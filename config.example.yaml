@@ -285,10 +285,10 @@ tool_groups:
 
 tools:
   # Web search tool (uses DuckDuckGo, no API key required)
-  - name: web_search
-    group: web
-    use: deerflow.community.ddg_search.tools:web_search_tool
-    max_results: 5
+  # - name: web_search
+  #   group: web
+  #   use: deerflow.community.ddg_search.tools:web_search_tool
+  #   max_results: 5
 
   # Web search tool (requires Tavily API key)
   # - name: web_search
@@ -323,10 +323,10 @@ tools:
 
   # Image search tool (uses DuckDuckGo)
   # Use this to find reference images before image generation
-  - name: image_search
-    group: web
-    use: deerflow.community.image_search.tools:image_search_tool
-    max_results: 5
+  # - name: image_search
+  #   group: web
+  #   use: deerflow.community.image_search.tools:image_search_tool
+  #   max_results: 5
 
   # Image search tool (uses InfoQuest)
   # - name: image_search
