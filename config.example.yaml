@@ -305,10 +305,10 @@ tools:
   #   search_time_range: 10
 
   # Web fetch tool (uses Jina AI reader)
-  - name: web_fetch
-    group: web
-    use: deerflow.community.jina_ai.tools:web_fetch_tool
-    timeout: 10
+  # - name: web_fetch
+  #   group: web
+  #   use: deerflow.community.jina_ai.tools:web_fetch_tool
+  #   timeout: 10
 
   # Web fetch tool (uses InfoQuest)
   # - name: web_fetch

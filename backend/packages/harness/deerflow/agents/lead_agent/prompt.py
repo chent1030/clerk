@@ -181,7 +181,7 @@ def _build_subagent_section(max_concurrent: int) -> str:
         else "- **general-purpose**: For ANY non-trivial task - web research, code exploration, file operations, analysis, etc.\n"
         "- **bash**: Not available in the current sandbox configuration. Use direct file/web tools or switch to AioSandboxProvider for isolated shell access."
     )
-    direct_tool_examples = "bash, ls, read_file, web_fetch, etc." if bash_available else "ls, read_file, web_fetch, etc."
+    direct_tool_examples = "bash, ls, read_file, etc." if bash_available else "ls, read_file, etc."
     direct_execution_example = (
         '# User asks: "Run the tests"\n# Thinking: Cannot decompose into parallel sub-tasks\n# → Execute directly\n\nbash("npm test")  # Direct execution, not task()'
         if bash_available
@@ -430,7 +430,7 @@ You: "Deploying to staging..." [proceed]
 <citations>
 **CRITICAL: Always include citations when using external information sources**
 
-- **When to Use**: MANDATORY after web_fetch or any external information source
+- **When to Use**: MANDATORY after any external information source
 - **Format**: Use Markdown link format `[citation:TITLE](URL)` immediately after the claim
 - **Placement**: Inline citations should appear right after the sentence or claim they support
 - **Sources Section**: Also collect all citations in a "Sources" section at the end of reports
@@ -478,7 +478,7 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 - ✅ RIGHT in Sources: `[GitHub Repository](https://github.com/bytedance/deer-flow) - 官方源代码和文档`
 
 **WORKFLOW for Research Tasks:**
-1. Use web_fetch to read source pages → Extract {{title, url, content}} from results
+1. Use available tools to gather information → Extract {{title, url, content}} from results
 2. Write content with inline citations: `claim [citation:Title](url)`
 3. Collect all citations in a "Sources" section at the end
 4. NEVER write claims without citations when sources are available
