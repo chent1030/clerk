@@ -19,7 +19,7 @@ from app.admin.services import department_service, skill_service
 
 router = APIRouter(prefix="/api/admin/skills", tags=["admin-skills"])
 
-SKILLS_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "skills", "custom")
+SKILLS_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))), "skills", "custom")
 
 
 def _get_minio_client() -> MinioClient:
