@@ -20,6 +20,22 @@ async def get_all_departments(db: AsyncSession) -> list[Department]:
     return list(result.scalars().all())
 
 
+async def get_subtree_department_ids(db: AsyncSession, dept_id: uuid.UUID) -> list[uuid.UUID]:
+    all_depts = await get_all_departments(db)
+    children_map: dict[uuid.UUID, list[uuid.UUID]] = {}
+    for d in all_depts:
+        if d.parent_id:
+            children_map.setdefault(d.parent_id, []).append(d.id)
+    result = [dept_id]
+    queue = [dept_id]
+    while queue:
+        current = queue.pop(0)
+        for child_id in children_map.get(current, []):
+            result.append(child_id)
+            queue.append(child_id)
+    return result
+
+
 async def get_member_counts(db: AsyncSession) -> dict[str, int]:
     result = await db.execute(select(User.department_id, func.count(User.id)).group_by(User.department_id))
     return {str(row[0]): row[1] for row in result.all() if row[0] is not None}

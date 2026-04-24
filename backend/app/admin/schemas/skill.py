@@ -14,6 +14,7 @@ class SkillUpdate(BaseModel):
 class SkillVisibilityUpdate(BaseModel):
     visibility: SkillVisibility
     visible_user_ids: list[uuid.UUID] = Field(default_factory=list)
+    visible_department_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
 class SkillReviewRequest(BaseModel):
@@ -38,6 +39,7 @@ class SkillResponse(BaseModel):
     author_name: str | None = None
     department_name: str | None = None
     visible_user_ids: list[str] = []
+    visible_department_ids: list[str] = []
 
     class Config:
         from_attributes = True

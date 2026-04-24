@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Table, Button, Tabs, Space, Tag, Popconfirm, message, Select, Modal } from 'antd';
+import { Table, Button, Tabs, Space, Tag, Popconfirm, message, Select, Modal, TreeSelect } from 'antd';
 import { PlusOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useSkills, useSubmitSkill, useWithdrawSkill, useDeleteSkill, useSetVisibility } from '../../hooks/useSkills';
+import { useDepartmentTree } from '../../hooks/useDepartments';
+import { useUsers } from '../../hooks/useUsers';
 import { useAuthStore } from '../../stores/auth';
 import { SkillStatus, SkillVisibility, UserRole } from '../../types';
-import type { Skill } from '../../types';
+import type { Skill, Department } from '../../types';
 import SkillUploadModal from './SkillUploadModal';
 import SkillReviewModal from './SkillReviewModal';
 import { downloadSkill } from '../../api/skills';
@@ -23,7 +25,7 @@ const statusColors: Record<string, string> = {
 
 const visibilityLabels: Record<string, string> = {
   company: '全公司',
-  department: '本部门',
+  department: '指定部门',
   specific_users: '指定用户',
   private: '仅自己',
 };
@@ -35,6 +37,52 @@ const statusLabels: Record<string, string> = {
   withdrawn: '已撤回',
 };
 
+interface TreeNode {
+  value: string;
+  title: string;
+  disabled?: boolean;
+  children?: TreeNode[];
+}
+
+function buildDeptTreeData(depts: Department[], disabledIds?: Set<string>): TreeNode[] {
+  return depts.map(d => ({
+    value: d.id,
+    title: d.name,
+    disabled: disabledIds?.has(d.id),
+    children: d.children?.length ? buildDeptTreeData(d.children, disabledIds) : undefined,
+  }));
+}
+
+function collectDescendantIds(depts: Department[], deptId: string): Set<string> {
+  const allowed = new Set<string>();
+  const find = (list: Department[]): Department | null => {
+    for (const d of list) {
+      if (d.id === deptId) return d;
+      if (d.children?.length) {
+        const r = find(d.children);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+  const collect = (d: Department) => {
+    allowed.add(d.id);
+    d.children?.forEach(collect);
+  };
+  const target = find(depts);
+  if (target) collect(target);
+  return allowed;
+}
+
+function collectAllDeptIds(depts: Department[]): string[] {
+  const ids: string[] = [];
+  for (const d of depts) {
+    ids.push(d.id);
+    if (d.children?.length) ids.push(...collectAllDeptIds(d.children));
+  }
+  return ids;
+}
+
 export default function SkillListPage({ showReview = false }: SkillListPageProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -43,6 +91,9 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
   const [reviewSkill, setReviewSkill] = useState<Skill | undefined>();
   const [visibilityModal, setVisibilityModal] = useState<Skill | undefined>();
   const [selectedVisibility, setSelectedVisibility] = useState<SkillVisibility>(SkillVisibility.PRIVATE);
+  const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [userSearch, setUserSearch] = useState('');
 
   const { user } = useAuthStore();
   const { data, isLoading } = useSkills(
@@ -50,10 +101,23 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
     pageSize,
     activeTab !== 'all' ? (activeTab as SkillStatus) : undefined,
   );
+  const { data: deptData } = useDepartmentTree();
+  const { data: userData } = useUsers(1, 100, userSearch || undefined);
   const submitMut = useSubmitSkill();
   const withdrawMut = useWithdrawSkill();
   const deleteMut = useDeleteSkill();
   const setVisMut = useSetVisibility();
+
+  const deptTreeData = (() => {
+    const all = deptData?.departments || [];
+    if (user?.role === UserRole.SUPER_ADMIN || !user?.department_id) {
+      return { tree: buildDeptTreeData(all), expandedKeys: collectAllDeptIds(all) };
+    }
+    const allowed = collectDescendantIds(all, user.department_id);
+    const allIds = new Set(collectAllDeptIds(all));
+    const disabledIds = new Set([...allIds].filter(id => !allowed.has(id)));
+    return { tree: buildDeptTreeData(all, disabledIds), expandedKeys: collectAllDeptIds(all) };
+  })();
 
   const handleDownload = async (skill: Skill) => {
     try {
@@ -65,13 +129,20 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
 
   const openVisibilityModal = (skill: Skill) => {
     setSelectedVisibility(skill.visibility);
+    setSelectedDeptIds(skill.visible_department_ids || []);
+    setSelectedUserIds(skill.visible_user_ids || []);
     setVisibilityModal(skill);
   };
 
   const handleVisibilityOk = () => {
     if (visibilityModal) {
       setVisMut.mutate(
-        { id: visibilityModal.id, visibility: selectedVisibility },
+        {
+          id: visibilityModal.id,
+          visibility: selectedVisibility,
+          visibleUserIds: selectedVisibility === SkillVisibility.SPECIFIC_USERS ? selectedUserIds : undefined,
+          visibleDepartmentIds: selectedVisibility === SkillVisibility.DEPARTMENT ? selectedDeptIds : undefined,
+        },
         { onSuccess: () => { message.success('可见性已更新'); setVisibilityModal(undefined); } },
       );
     }
@@ -102,7 +173,7 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
       width: 280,
       render: (_, record) => (
         <Space size={4} wrap>
-          {(record.status === SkillStatus.APPROVED || user?.role === UserRole.SUPER_ADMIN) && (
+          {(record.author_id === user?.id || user?.role === UserRole.SUPER_ADMIN) && (
             <Button size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(record)}>下载</Button>
           )}
           {record.status === SkillStatus.PENDING_REVIEW && record.author_id === user?.id && (
@@ -175,18 +246,51 @@ export default function SkillListPage({ showReview = false }: SkillListPageProps
         open={!!visibilityModal}
         onCancel={() => setVisibilityModal(undefined)}
         onOk={handleVisibilityOk}
+        width={520}
       >
-        <Select
-          value={selectedVisibility}
-          onChange={(v) => setSelectedVisibility(v)}
-          style={{ width: '100%' }}
-          options={[
-            { value: SkillVisibility.COMPANY, label: '全公司（所有用户）' },
-            { value: SkillVisibility.DEPARTMENT, label: '本部门' },
-            { value: SkillVisibility.SPECIFIC_USERS, label: '指定用户' },
-            { value: SkillVisibility.PRIVATE, label: '仅自己' },
-          ]}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Select
+            value={selectedVisibility}
+            onChange={(v) => setSelectedVisibility(v)}
+            style={{ width: '100%' }}
+            options={[
+              { value: SkillVisibility.COMPANY, label: '全公司（所有用户）' },
+              { value: SkillVisibility.DEPARTMENT, label: '指定部门' },
+              { value: SkillVisibility.SPECIFIC_USERS, label: '指定用户' },
+              { value: SkillVisibility.PRIVATE, label: '仅自己' },
+            ]}
+          />
+          {selectedVisibility === SkillVisibility.DEPARTMENT && (
+            <TreeSelect
+              treeData={deptTreeData.tree}
+              value={selectedDeptIds}
+              onChange={(vals) => setSelectedDeptIds(vals)}
+              treeCheckable
+              showCheckedStrategy={TreeSelect.SHOW_CHILD}
+              placeholder="选择可见部门（含子部门）"
+              style={{ width: '100%' }}
+              allowClear
+              treeExpandedKeys={deptTreeData.expandedKeys}
+            />
+          )}
+          {selectedVisibility === SkillVisibility.SPECIFIC_USERS && (
+            <Select
+              mode="multiple"
+              value={selectedUserIds}
+              onChange={(vals) => setSelectedUserIds(vals)}
+              placeholder="搜索并选择用户"
+              style={{ width: '100%' }}
+              allowClear
+              showSearch
+              filterOption={false}
+              onSearch={(val) => setUserSearch(val)}
+              options={(userData?.users || []).map(u => ({
+                value: u.id,
+                label: `${u.display_name || u.username}${u.email ? ` (${u.email})` : ''}`,
+              }))}
+            />
+          )}
+        </div>
       </Modal>
     </div>
   );

@@ -10,6 +10,7 @@ import { getAPIClient, authFetch } from "../api";
 import { useI18n } from "../i18n/hooks";
 import type { FileInMessage } from "../messages/utils";
 import type { LocalSettings } from "../settings";
+import { loadVisibleSkillNames } from "../skills/api";
 import { useUpdateSubtask } from "../tasks/context";
 import type { UploadedFileInfo } from "../uploads";
 import { promptInputFilePartToFile, uploadFiles } from "../uploads";
@@ -501,6 +502,7 @@ export function useThreadStream({
                       ? "low"
                       : undefined),
               thread_id: threadId,
+              visible_skills: await loadVisibleSkillNames(),
             },
           },
         );

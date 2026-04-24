@@ -8,6 +8,15 @@ export async function loadSkills() {
   return json.skills as Skill[];
 }
 
+export async function loadVisibleSkillNames(): Promise<string[]> {
+  try {
+    const skills = await loadSkills();
+    return skills.map((s) => s.name);
+  } catch {
+    return [];
+  }
+}
+
 export async function enableSkill(skillName: string, enabled: boolean) {
   const response = await authFetch(`/api/skills/${skillName}`, {
     method: "PUT",

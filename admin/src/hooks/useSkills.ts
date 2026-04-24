@@ -33,8 +33,12 @@ export function useUpdateSkill() {
 export function useSetVisibility() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, visibility, visibleUserIds }: { id: string; visibility: SkillVisibility; visibleUserIds?: string[] }) =>
-      setSkillVisibility(id, visibility, visibleUserIds),
+    mutationFn: ({ id, visibility, visibleUserIds, visibleDepartmentIds }: {
+      id: string;
+      visibility: SkillVisibility;
+      visibleUserIds?: string[];
+      visibleDepartmentIds?: string[];
+    }) => setSkillVisibility(id, visibility, visibleUserIds, visibleDepartmentIds),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['skills'] }); },
   });
 }

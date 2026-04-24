@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TenantMixin, TimestampMixin
 
 if TYPE_CHECKING:
+    from .department import Department
     from .user import User
 
 
@@ -49,6 +50,7 @@ class Skill(Base, TimestampMixin, TenantMixin):
     author: Mapped[User] = relationship("User", foreign_keys=[author_id])
     reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewed_by])
     visible_users: Mapped[list[SkillVisibleUser]] = relationship(back_populates="skill", cascade="all, delete-orphan")
+    visible_departments: Mapped[list[SkillVisibleDepartment]] = relationship(back_populates="skill", cascade="all, delete-orphan")
 
 
 class SkillVisibleUser(Base):
@@ -59,3 +61,13 @@ class SkillVisibleUser(Base):
 
     skill: Mapped[Skill] = relationship(back_populates="visible_users")
     user: Mapped[User] = relationship()
+
+
+class SkillVisibleDepartment(Base):
+    __tablename__ = "skill_visible_departments"
+
+    skill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("skills.id"), primary_key=True)
+    department_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("departments.id"), primary_key=True)
+
+    skill: Mapped[Skill] = relationship(back_populates="visible_departments")
+    department: Mapped[Department] = relationship()

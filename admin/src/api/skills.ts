@@ -55,8 +55,12 @@ export async function updateSkill(id: string, data: { name?: string; description
   return res.data;
 }
 
-export async function setSkillVisibility(id: string, visibility: SkillVisibility, visible_user_ids?: string[]): Promise<Skill> {
-  const res = await apiClient.put(`/api/admin/skills/${id}/visibility`, { visibility, visible_user_ids: visible_user_ids || [] });
+export async function setSkillVisibility(id: string, visibility: SkillVisibility, visible_user_ids?: string[], visible_department_ids?: string[]): Promise<Skill> {
+  const res = await apiClient.put(`/api/admin/skills/${id}/visibility`, {
+    visibility,
+    visible_user_ids: visible_user_ids || [],
+    visible_department_ids: visible_department_ids || [],
+  });
   return res.data;
 }
 

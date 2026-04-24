@@ -60,13 +60,7 @@ export interface Skill {
   author_name: string | null;
   department_name: string | null;
   visible_user_ids: string[];
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  page_size: number;
+  visible_department_ids: string[];
 }
 
 export interface LoginRequest {
