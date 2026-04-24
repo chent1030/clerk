@@ -284,6 +284,13 @@ export function useThreadStream({
     onFinish(state) {
       listeners.current.onFinish?.(state.values);
       void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
+      const tid = threadIdRef.current;
+      if (tid) {
+        authFetch(`/api/threads/${encodeURIComponent(tid)}/audit/record`, {
+          method: "POST",
+          body: JSON.stringify({ title: state.values?.title ?? null }),
+        }).catch(() => {});
+      }
     },
   });
 

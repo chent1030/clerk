@@ -767,3 +767,56 @@ async def get_thread_history(
         raise HTTPException(status_code=500, detail="Failed to get thread history")
 
     return entries
+
+
+class AuditRunRequest(BaseModel):
+    title: str | None = None
+
+
+@router.post("/{thread_id}/audit/record")
+async def audit_record_run(
+    thread_id: str,
+    body: AuditRunRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await thread_service.create_thread_record(db, thread_id=thread_id, user_id=current_user.id)
+    except Exception:
+        logger.debug("audit_record: thread record already exists for %s", thread_id)
+
+    checkpointer = get_checkpointer(request)
+    config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
+    try:
+        checkpoint_tuple = await checkpointer.aget_tuple(config)
+    except Exception:
+        checkpoint_tuple = None
+
+    if checkpoint_tuple is not None:
+        checkpoint = getattr(checkpoint_tuple, "checkpoint", {}) or {}
+        channel_values = checkpoint.get("channel_values", {})
+        messages = channel_values.get("messages", [])
+
+        last_human = None
+        last_ai = None
+        for msg in reversed(messages):
+            msg_type = getattr(msg, "type", "") if hasattr(msg, "type") else msg.get("type", "") if isinstance(msg, dict) else ""
+            content = str(getattr(msg, "content", "") if hasattr(msg, "content") else msg.get("content", "") if isinstance(msg, dict) else "")
+            if not last_ai and msg_type in ("ai", "assistant"):
+                last_ai = content
+            elif not last_human and msg_type == "human":
+                last_human = content
+            if last_human and last_ai:
+                break
+
+        if last_human:
+            await thread_service.record_message(db, thread_id=thread_id, role="user", content=last_human[:2000])
+        if last_ai:
+            await thread_service.record_message(db, thread_id=thread_id, role="assistant", content=last_ai[:2000])
+
+        title = body.title or channel_values.get("title")
+        if title:
+            await thread_service.update_thread_title(db, thread_id, title)
+
+    return {"status": "ok"}

@@ -31,8 +31,8 @@ export function getLangGraphBaseURL(isMock?: boolean) {
     return "http://localhost:3000/mock/api";
   } else {
     if (typeof window !== "undefined") {
-      return `${window.location.origin}/api/langgraph-compat`;
+      return `${window.location.origin}/api/langgraph`;
     }
-    return "http://localhost:2026/api/langgraph-compat";
+    return "http://localhost:2026/api/langgraph";
   }
 }
