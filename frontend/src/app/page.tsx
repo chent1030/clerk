@@ -76,14 +76,6 @@ export default function LoginPage() {
             {loading ? "登录中..." : "登录"}
           </button>
         </form>
-        <div className="mt-6 text-center">
-          <a
-            href="/en/docs"
-            className="text-sm text-neutral-500 hover:text-neutral-300 transition-colors"
-          >
-            查看文档
-          </a>
-        </div>
       </div>
     </div>
   );

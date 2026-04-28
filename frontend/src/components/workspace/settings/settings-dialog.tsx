@@ -2,6 +2,7 @@
 
 import {
   BellIcon,
+  ClockIcon,
   InfoIcon,
   BrainIcon,
   PaletteIcon,
@@ -21,6 +22,7 @@ import { AboutSettingsPage } from "@/components/workspace/settings/about-setting
 import { AppearanceSettingsPage } from "@/components/workspace/settings/appearance-settings-page";
 import { MemorySettingsPage } from "@/components/workspace/settings/memory-settings-page";
 import { NotificationSettingsPage } from "@/components/workspace/settings/notification-settings-page";
+import { SchedulerSettingsPage } from "@/components/workspace/settings/scheduler-settings-page";
 import { SkillSettingsPage } from "@/components/workspace/settings/skill-settings-page";
 import { ToolSettingsPage } from "@/components/workspace/settings/tool-settings-page";
 import { useI18n } from "@/core/i18n/hooks";
@@ -31,7 +33,8 @@ type SettingsSection =
   | "memory"
   | "tools"
   | "skills"
-  | "notification";
+  | "notification"
+  | "scheduler";
 
 type SettingsDialogProps = React.ComponentProps<typeof Dialog> & {
   defaultSection?: SettingsSection;
@@ -70,12 +73,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
       },
       { id: "tools", label: t.settings.sections.tools, icon: WrenchIcon },
       { id: "skills", label: t.settings.sections.skills, icon: SparklesIcon },
+      { id: "scheduler", label: t.settings.sections.scheduler, icon: ClockIcon },
     ],
     [
       t.settings.sections.appearance,
       t.settings.sections.memory,
       t.settings.sections.tools,
       t.settings.sections.skills,
+      t.settings.sections.scheduler,
       t.settings.sections.notification
     ],
   );
@@ -130,6 +135,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
                 />
               )}
               {activeSection === "notification" && <NotificationSettingsPage />}
+              {activeSection === "scheduler" && <SchedulerSettingsPage />}
             </div>
           </ScrollArea>
         </div>

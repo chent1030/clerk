@@ -256,6 +256,7 @@ export interface Translations {
       skills: string;
       notification: string;
       about: string;
+      scheduler: string;
     };
     memory: {
       title: string;
@@ -369,5 +370,46 @@ export interface Translations {
       emptyTitle: string;
       emptyDescription: string;
     };
+  };
+
+  scheduler: {
+    title: string;
+    description: string;
+    createTask: string;
+    editTask: string;
+    deleteTask: string;
+    deleteConfirm: string;
+    deleteConfirmDescription: string;
+    toggleEnable: string;
+    toggleDisable: string;
+    triggerNow: string;
+    triggering: string;
+    noTasks: string;
+    taskName: string;
+    taskNamePlaceholder: string;
+    prompt: string;
+    promptPlaceholder: string;
+    skill: string;
+    skillPlaceholder: string;
+    cronExpression: string;
+    cronPlaceholder: string;
+    cronPreview: string;
+    customVariables: string;
+    addVariable: string;
+    variableKey: string;
+    variableValue: string;
+    preview: string;
+    save: string;
+    cancel: string;
+    status: string;
+    lastExecution: string;
+    nextExecution: string;
+    noExecution: string;
+    executionHistory: string;
+    executionDetail: string;
+    viewDetail: string;
+    noExecutions: string;
+    duration: string;
+    messages: string;
   };
 }

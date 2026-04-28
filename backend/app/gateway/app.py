@@ -23,6 +23,7 @@ from app.gateway.routers import (
     memory,
     models,
     runs,
+    scheduler,
     skills,
     suggestions,
     thread_runs,
@@ -75,7 +76,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception:
             logger.exception("No IM channels configured or channel service failed to start")
 
+        # Initialize scheduler
+        import os
+
+        from app.admin.services.scheduler_service import load_all_enabled_tasks
+        from deerflow.scheduler.executor import TaskExecutor
+        from deerflow.scheduler.manager import SchedulerManager
+
+        sched_mgr = SchedulerManager.get_instance()
+        langgraph_url = os.environ.get("DEER_FLOW_SCHEDULER_LANGGRAPH_URL", "http://localhost:2024")
+        executor = TaskExecutor(app.state.admin_session_factory, langgraph_url=langgraph_url)
+        sched_mgr.set_executor(executor)
+        sched_mgr.start()
+
+        async with app.state.admin_session_factory() as db:
+            enabled_tasks = await load_all_enabled_tasks(db)
+        for t in enabled_tasks:
+            sched_mgr.register_task(str(t.id), t.cron_expression)
+        logger.info("Scheduler loaded %d enabled tasks", len(enabled_tasks))
+
         yield
+
+        # Stop scheduler
+        from deerflow.scheduler.manager import SchedulerManager
+        SchedulerManager.get_instance().stop()
 
         # Stop channel service on shutdown
         try:
@@ -225,6 +249,7 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     app.include_router(admin_depts.router)
     app.include_router(admin_skills.router)
     app.include_router(admin_audit_threads.router)
+    app.include_router(scheduler.router)
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:

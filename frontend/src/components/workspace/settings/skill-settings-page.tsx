@@ -78,12 +78,6 @@ function SkillSettingsList({
             </TabsList>
           </Tabs>
         </div>
-        <div>
-          <Button size="sm" onClick={handleCreateSkill}>
-            <SparklesIcon className="size-4" />
-            {t.settings.skills.createSkill}
-          </Button>
-        </div>
       </header>
       {filteredSkills.length === 0 && (
         <EmptySkill onCreateSkill={handleCreateSkill} />
@@ -127,9 +121,6 @@ function EmptySkill({ onCreateSkill }: { onCreateSkill: () => void }) {
           {t.settings.skills.emptyDescription}
         </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent>
-        <Button onClick={onCreateSkill}>{t.settings.skills.emptyButton}</Button>
-      </EmptyContent>
     </Empty>
   );
 }

@@ -61,11 +61,11 @@ export const zhCN: Translations = {
   welcome: {
     greeting: "你好，欢迎回来！",
     description:
-      "欢迎使用 🦌 DeerFlow，一个完全开源的超级智能体。通过内置和自定义的 Skills，\nDeerFlow 可以帮你搜索网络、分析数据，还能为你生成幻灯片、\n图片、视频、播客及网页等，几乎可以做任何事情。",
+      "欢迎使用超级智能体。通过内置和自定义的 Skills，可以帮你分析数据，生成幻灯片、\n图片、视频、播客及网页等，几乎可以做任何事情。",
 
     createYourOwnSkill: "创建你自己的 Agent SKill",
     createYourOwnSkillDescription:
-      "创建你的 Agent Skill 来释放 DeerFlow 的潜力。通过自定义技能，DeerFlow\n可以帮你搜索网络、分析数据，还能为你生成幻灯片、\n网页等作品，几乎可以做任何事情。",
+      "创建你的 Agent Skill 来释放潜力。通过自定义技能，可以帮你分析数据、成幻灯片、\n网页等作品，几乎可以做任何事情。",
   },
 
   // Clipboard
@@ -121,11 +121,6 @@ export const zhCN: Translations = {
         icon: MicroscopeIcon,
       },
       {
-        suggestion: "收集",
-        prompt: "从[来源]收集数据并创建报告。",
-        icon: ShapesIcon,
-      },
-      {
         suggestion: "学习",
         prompt: "学习关于[主题]并创建教程。",
         icon: GraduationCapIcon,
@@ -146,15 +141,6 @@ export const zhCN: Translations = {
         suggestion: "视频",
         prompt: "生成一个关于[主题]的视频",
         icon: VideoIcon,
-      },
-      {
-        type: "separator",
-      },
-      {
-        suggestion: "技能",
-        prompt:
-          "我们一起用 skill-creator 技能来创建一个技能吧。先问问我希望这个技能能做什么。",
-        icon: SparklesIcon,
       },
     ],
   },
@@ -311,6 +297,7 @@ export const zhCN: Translations = {
       skills: "技能",
       notification: "通知",
       about: "关于",
+      scheduler: "定时任务",
     },
     memory: {
       title: "记忆",
@@ -411,8 +398,7 @@ export const zhCN: Translations = {
       createSkill: "新建技能",
       emptyTitle: "还没有技能",
       emptyDescription:
-        "将你的 Agent Skill 文件夹放在 DeerFlow 根目录下的 `/skills/custom` 文件夹中。",
-      emptyButton: "创建你的第一个技能",
+        "请在管理端进行技能的提交审核，审核通过后即可在此启用使用。"
     },
     notification: {
       title: "通知",
@@ -431,5 +417,46 @@ export const zhCN: Translations = {
       emptyTitle: "致谢",
       emptyDescription: "相关的致谢信息会展示在这里。",
     },
+  },
+
+  scheduler: {
+    title: "定时任务",
+    description: "创建和管理基于 Cron 的定时任务，自动运行 Agent 执行指定技能。",
+    createTask: "新建任务",
+    editTask: "编辑任务",
+    deleteTask: "删除",
+    deleteConfirm: "确认删除此任务？",
+    deleteConfirmDescription: "将同时删除关联的 Agent 及所有执行历史记录，此操作不可撤销。",
+    toggleEnable: "启用",
+    toggleDisable: "停用",
+    triggerNow: "立即执行",
+    triggering: "执行中...",
+    noTasks: "暂无定时任务。",
+    taskName: "任务名称",
+    taskNamePlaceholder: "简要描述此任务",
+    prompt: "提示词",
+    promptPlaceholder: "输入提示词模板，使用 {{变量}} 语法插入动态值。",
+    skill: "技能",
+    skillPlaceholder: "选择技能",
+    cronExpression: "Cron 调度",
+    cronPlaceholder: "0 9 * * *",
+    cronPreview: "调度预览",
+    customVariables: "自定义变量",
+    addVariable: "添加变量",
+    variableKey: "键名",
+    variableValue: "值",
+    preview: "预览",
+    save: "保存",
+    cancel: "取消",
+    status: "状态",
+    lastExecution: "上次执行",
+    nextExecution: "下次执行",
+    noExecution: "-",
+    executionHistory: "执行历史",
+    executionDetail: "执行详情",
+    viewDetail: "查看",
+    noExecutions: "暂无执行记录。",
+    duration: "耗时",
+    messages: "消息",
   },
 };
