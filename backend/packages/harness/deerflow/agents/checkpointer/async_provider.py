@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import sys
 from collections.abc import AsyncIterator
 
 from langgraph.types import Checkpointer
@@ -38,14 +37,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Async factory
 # ---------------------------------------------------------------------------
-
-
-def _ensure_windows_selector_loop_policy() -> None:
-    """Force a psycopg-compatible asyncio policy on Windows."""
-    if sys.platform == "win32":
-        current = asyncio.get_event_loop_policy()
-        if not isinstance(current, asyncio.WindowsSelectorEventLoopPolicy):
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @contextlib.asynccontextmanager
@@ -71,16 +62,15 @@ async def _async_checkpointer(config) -> AsyncIterator[Checkpointer]:
         return
 
     if config.type == "postgres":
-        _ensure_windows_selector_loop_policy()
         try:
-            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+            from deerflow.agents.checkpointer.asyncpg_saver import AsyncPGSaver
         except ImportError as exc:
             raise ImportError(POSTGRES_INSTALL) from exc
 
         if not config.connection_string:
             raise ValueError(POSTGRES_CONN_REQUIRED)
 
-        async with AsyncPostgresSaver.from_conn_string(config.connection_string) as saver:
+        async with AsyncPGSaver.from_conn_string(config.connection_string) as saver:
             await saver.setup()
             yield saver
         return

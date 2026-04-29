@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import sys
 from collections.abc import AsyncIterator
 
 from langgraph.store.base import BaseStore
@@ -32,16 +31,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Internal backend factory
 # ---------------------------------------------------------------------------
-
-
-def _ensure_windows_selector_loop_policy() -> None:
-    """Force a psycopg-compatible asyncio policy on Windows."""
-    if sys.platform == "win32":
-        import asyncio
-
-        current = asyncio.get_event_loop_policy()
-        if not isinstance(current, asyncio.WindowsSelectorEventLoopPolicy):
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @contextlib.asynccontextmanager
@@ -74,18 +63,17 @@ async def _async_store(config) -> AsyncIterator[BaseStore]:
         return
 
     if config.type == "postgres":
-        _ensure_windows_selector_loop_policy()
         try:
-            from langgraph.store.postgres.aio import AsyncPostgresStore  # type: ignore[import]
+            from deerflow.runtime.store.asyncpg_store import AsyncPGStore
         except ImportError as exc:
             raise ImportError(POSTGRES_STORE_INSTALL) from exc
 
         if not config.connection_string:
             raise ValueError(POSTGRES_CONN_REQUIRED)
 
-        async with AsyncPostgresStore.from_conn_string(config.connection_string) as store:
+        async with AsyncPGStore.from_conn_string(config.connection_string) as store:
             await store.setup()
-            logger.info("Store: using AsyncPostgresStore")
+            logger.info("Store: using AsyncPGStore (asyncpg)")
             yield store
         return
 
