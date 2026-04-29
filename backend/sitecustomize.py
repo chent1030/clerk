@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import sys
 
-
 if sys.platform == "win32":
     # psycopg async connections are incompatible with ProactorEventLoop.
     # Enforce SelectorEventLoop globally as early as possible.

@@ -93,14 +93,14 @@ class AsyncPGCursor:
         self._rows = []
         self._index = 0
 
-    def fetchone(self) -> dict | None:
+    async def fetchone(self) -> dict | None:
         if self._index >= len(self._rows):
             return None
         row = self._rows[self._index]
         self._index += 1
         return row
 
-    def fetchall(self) -> list[dict]:
+    async def fetchall(self) -> list[dict]:
         rows = self._rows[self._index :]
         self._index = len(self._rows)
         return rows
@@ -113,7 +113,7 @@ class AsyncPGCursor:
         return self
 
     async def __anext__(self) -> dict:
-        row = self.fetchone()
+        row = await self.fetchone()
         if row is None:
             raise StopAsyncIteration
         return row

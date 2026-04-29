@@ -129,9 +129,7 @@ class TaskExecutor:
                     task_obj.last_execution_at = _now_iso()
                     from deerflow.scheduler.manager import SchedulerManager
 
-                    task_obj.next_execution_at = SchedulerManager.compute_next_run(
-                        task_obj.cron_expression
-                    )
+                    task_obj.next_execution_at = SchedulerManager.compute_next_run(task_obj.cron_expression)
                     task_obj.error_message = None
                     await db2.commit()
 

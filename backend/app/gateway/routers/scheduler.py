@@ -197,9 +197,7 @@ async def list_executions(
     db=Depends(get_db),
 ):
     try:
-        executions = await scheduler_service.list_executions(
-            db, uuid.UUID(task_id), user.id, limit=limit, offset=offset
-        )
+        executions = await scheduler_service.list_executions(db, uuid.UUID(task_id), user.id, limit=limit, offset=offset)
         return [_exec_to_response(e) for e in executions]
     except ValueError:
         raise HTTPException(status_code=404, detail="Task not found")

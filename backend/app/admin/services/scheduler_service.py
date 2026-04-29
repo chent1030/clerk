@@ -167,19 +167,14 @@ async def trigger_task(db: AsyncSession, task_id: uuid.UUID, user_id: uuid.UUID)
     await executor.execute_task(str(task.id))
 
     result = await db.execute(
-        select(TaskExecution)
-        .where(TaskExecution.task_id == task_id)
-        .order_by(TaskExecution.triggered_at.desc())
-        .limit(1),
+        select(TaskExecution).where(TaskExecution.task_id == task_id).order_by(TaskExecution.triggered_at.desc()).limit(1),
     )
     return result.scalar_one()
 
 
 async def list_tasks(db: AsyncSession, user_id: uuid.UUID) -> list[ScheduledTask]:
     result = await db.execute(
-        select(ScheduledTask)
-        .where(ScheduledTask.user_id == user_id)
-        .order_by(ScheduledTask.created_at.desc()),
+        select(ScheduledTask).where(ScheduledTask.user_id == user_id).order_by(ScheduledTask.created_at.desc()),
     )
     return list(result.scalars().all())
 
@@ -203,11 +198,7 @@ async def list_executions(
         raise ValueError("Task not found or access denied")
 
     result = await db.execute(
-        select(TaskExecution)
-        .where(TaskExecution.task_id == task_id)
-        .order_by(TaskExecution.triggered_at.desc())
-        .limit(limit)
-        .offset(offset),
+        select(TaskExecution).where(TaskExecution.task_id == task_id).order_by(TaskExecution.triggered_at.desc()).limit(limit).offset(offset),
     )
     return list(result.scalars().all())
 

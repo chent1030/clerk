@@ -99,6 +99,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         # Stop scheduler
         from deerflow.scheduler.manager import SchedulerManager
+
         SchedulerManager.get_instance().stop()
 
         # Stop channel service on shutdown

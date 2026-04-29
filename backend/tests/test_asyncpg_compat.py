@@ -125,7 +125,7 @@ class TestAsyncPGCursor:
         result = await cursor.execute("SELECT * FROM t WHERE id = %s", (1,))
         assert result is cursor
         assert cursor.rowcount == 2
-        assert cursor.fetchall() == [
+        assert await cursor.fetchall() == [
             {"id": 1, "name": "Alice"},
             {"id": 2, "name": "Bob"},
         ]
@@ -136,7 +136,7 @@ class TestAsyncPGCursor:
         cursor = AsyncPGCursor(mock_conn)
         await cursor.execute("INSERT INTO t (a) VALUES (%s)", ("val",))
         assert cursor.rowcount == 1
-        assert cursor.fetchall() == []
+        assert await cursor.fetchall() == []
 
     @pytest.mark.asyncio
     async def test_execute_delete(self, mock_conn):
@@ -167,9 +167,9 @@ class TestAsyncPGCursor:
         ]
         cursor = AsyncPGCursor(mock_conn)
         await cursor.execute("SELECT id FROM t")
-        assert cursor.fetchone() == {"id": 1}
-        assert cursor.fetchone() == {"id": 2}
-        assert cursor.fetchone() is None
+        assert await cursor.fetchone() == {"id": 1}
+        assert await cursor.fetchone() == {"id": 2}
+        assert await cursor.fetchone() is None
 
     @pytest.mark.asyncio
     async def test_fetchall_after_fetchone(self, mock_conn):
@@ -180,8 +180,8 @@ class TestAsyncPGCursor:
         ]
         cursor = AsyncPGCursor(mock_conn)
         await cursor.execute("SELECT id FROM t")
-        cursor.fetchone()
-        assert cursor.fetchall() == [{"id": 2}, {"id": 3}]
+        await cursor.fetchone()
+        assert await cursor.fetchall() == [{"id": 2}, {"id": 3}]
 
     @pytest.mark.asyncio
     async def test_executemany(self, mock_conn):
