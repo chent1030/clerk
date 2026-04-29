@@ -13,6 +13,17 @@ import sys
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+    import uvicorn.loops.asyncio as _uv_loop
+
+    _orig_factory = _uv_loop.asyncio_loop_factory
+
+    def _patched_factory(use_subprocess: bool = False):
+        if not use_subprocess:
+            return asyncio.SelectorEventLoop
+        return _orig_factory(use_subprocess=use_subprocess)
+
+    _uv_loop.asyncio_loop_factory = _patched_factory
+
 from langgraph_cli.cli import cli
 
 dev_cmd = cli.commands["dev"]
