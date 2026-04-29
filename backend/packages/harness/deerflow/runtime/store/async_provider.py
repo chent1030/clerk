@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import sys
 from collections.abc import AsyncIterator
 
 from langgraph.store.base import BaseStore
@@ -31,6 +32,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Internal backend factory
 # ---------------------------------------------------------------------------
+
+
+def _ensure_windows_selector_loop_policy() -> None:
+    """Force a psycopg-compatible asyncio policy on Windows."""
+    if sys.platform == "win32":
+        import asyncio
+
+        current = asyncio.get_event_loop_policy()
+        if not isinstance(current, asyncio.WindowsSelectorEventLoopPolicy):
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @contextlib.asynccontextmanager
@@ -63,6 +74,7 @@ async def _async_store(config) -> AsyncIterator[BaseStore]:
         return
 
     if config.type == "postgres":
+        _ensure_windows_selector_loop_policy()
         try:
             from langgraph.store.postgres.aio import AsyncPostgresStore  # type: ignore[import]
         except ImportError as exc:
