@@ -43,6 +43,38 @@ def _convert_params(params: tuple | None) -> tuple:
     return tuple(converted)
 
 
+def _maybe_json(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    current = value
+    for _ in range(2):
+        stripped = current.strip()
+        if not stripped or stripped[0] not in "[{\"":
+            return current
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return current
+        if not isinstance(parsed, str):
+            return parsed
+        current = parsed
+    return current
+
+
+def _convert_value(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_convert_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_convert_value(item) for item in value)
+    if isinstance(value, dict):
+        return {key: _convert_value(item) for key, item in value.items()}
+    return _maybe_json(value)
+
+
+def _convert_record(record: Any) -> dict:
+    return {key: _convert_value(value) for key, value in dict(record).items()}
+
+
 def _parse_rowcount(status: str) -> int:
     if not status:
         return 0
@@ -69,7 +101,7 @@ class AsyncPGCursor:
                 records = await self._conn.fetch(converted_query, *converted_params)
             else:
                 records = await self._conn.fetch(converted_query)
-            self._rows = [dict(r) for r in records]
+            self._rows = [_convert_record(r) for r in records]
             self._rowcount = len(self._rows)
         else:
             if converted_params:

@@ -57,9 +57,13 @@ function Ensure-FrontendEnv($RepoRoot) {
   }
 }
 
-function Wait-Port($Port, $Name, $TimeoutSeconds) {
+function Wait-Port($Port, $Name, $TimeoutSeconds, $Process, $LogPath) {
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
   while ((Get-Date) -lt $deadline) {
+    if ($null -ne $Process -and $Process.HasExited) {
+      throw "$Name exited before listening on port $Port. Check log: $LogPath"
+    }
+
     try {
       $client = [System.Net.Sockets.TcpClient]::new()
       $async = $client.BeginConnect("127.0.0.1", $Port, $null, $null)
@@ -74,7 +78,7 @@ function Wait-Port($Port, $Name, $TimeoutSeconds) {
       Start-Sleep -Milliseconds 500
     }
   }
-  throw "$Name did not listen on port $Port within $TimeoutSeconds seconds. Check logs/$($Name.ToLower()).log."
+  throw "$Name did not listen on port $Port within $TimeoutSeconds seconds. Check log: $LogPath"
 }
 
 function Start-DeerFlowProcess($Name, $WorkingDirectory, $Command, $LogPath, $PidPath) {
@@ -92,6 +96,7 @@ function Start-DeerFlowProcess($Name, $WorkingDirectory, $Command, $LogPath, $Pi
 
   Set-Content -Path $PidPath -Value $process.Id -Encoding ASCII
   Write-Host "Started $Name as process $($process.Id)"
+  return $process
 }
 
 $repoRoot = Get-RepoRoot
@@ -147,17 +152,21 @@ $frontendCmd = "yarn start"
 $nginxConf = Join-Path $repoRoot "docker\nginx\nginx.local.conf"
 $nginxCmd = "nginx -g 'daemon off;' -c '$nginxConf' -p '$repoRoot'"
 
-Start-DeerFlowProcess "langgraph" (Join-Path $repoRoot "backend") $langgraphCmd (Join-Path $logsDir "langgraph.log") (Join-Path $logsDir "langgraph.pid")
-Wait-Port 2024 "LangGraph" $StartupTimeoutSeconds
+$langgraphLog = Join-Path $logsDir "langgraph.log"
+$langgraphProcess = Start-DeerFlowProcess "langgraph" (Join-Path $repoRoot "backend") $langgraphCmd $langgraphLog (Join-Path $logsDir "langgraph.pid")
+Wait-Port 2024 "LangGraph" $StartupTimeoutSeconds $langgraphProcess $langgraphLog
 
-Start-DeerFlowProcess "gateway" (Join-Path $repoRoot "backend") $gatewayCmd (Join-Path $logsDir "gateway.log") (Join-Path $logsDir "gateway.pid")
-Wait-Port 8001 "Gateway" $StartupTimeoutSeconds
+$gatewayLog = Join-Path $logsDir "gateway.log"
+$gatewayProcess = Start-DeerFlowProcess "gateway" (Join-Path $repoRoot "backend") $gatewayCmd $gatewayLog (Join-Path $logsDir "gateway.pid")
+Wait-Port 8001 "Gateway" $StartupTimeoutSeconds $gatewayProcess $gatewayLog
 
-Start-DeerFlowProcess "frontend" (Join-Path $repoRoot "frontend") $frontendCmd (Join-Path $logsDir "frontend.log") (Join-Path $logsDir "frontend.pid")
-Wait-Port 3000 "Frontend" $StartupTimeoutSeconds
+$frontendLog = Join-Path $logsDir "frontend.log"
+$frontendProcess = Start-DeerFlowProcess "frontend" (Join-Path $repoRoot "frontend") $frontendCmd $frontendLog (Join-Path $logsDir "frontend.pid")
+Wait-Port 3000 "Frontend" $StartupTimeoutSeconds $frontendProcess $frontendLog
 
-Start-DeerFlowProcess "nginx" $repoRoot $nginxCmd (Join-Path $logsDir "nginx.log") (Join-Path $logsDir "nginx.pid")
-Wait-Port 2026 "nginx" $StartupTimeoutSeconds
+$nginxLog = Join-Path $logsDir "nginx.log"
+$nginxProcess = Start-DeerFlowProcess "nginx" $repoRoot $nginxCmd $nginxLog (Join-Path $logsDir "nginx.pid")
+Wait-Port 2026 "nginx" $StartupTimeoutSeconds $nginxProcess $nginxLog
 
 Write-Host ""
 Write-Host "DeerFlow production services are running in background."
