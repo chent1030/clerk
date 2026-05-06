@@ -3,7 +3,6 @@ import logging
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, SummarizationMiddleware
 from langchain_core.runnables import RunnableConfig
-from langgraph.config import get_config
 
 from deerflow.agents.lead_agent.prompt import apply_prompt_template
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
@@ -339,8 +338,7 @@ def make_lead_agent(config: RunnableConfig):
             state_schema=ThreadState,
         )
 
-    config_data = get_config()
-    visible_skills = config_data.get("configurable", {}).get("visible_skills")
+    visible_skills = cfg.get("visible_skills")
     visible_skill_names = set(visible_skills) if visible_skills else None
     # Default lead agent (unchanged behavior)
     return create_agent(
@@ -352,7 +350,7 @@ def make_lead_agent(config: RunnableConfig):
             max_concurrent_subagents=max_concurrent_subagents,
             agent_name=agent_name,
             available_skills=set(agent_config.skills) if agent_config and agent_config.skills is not None else None,
-            username=config_data.get("configurable", {}).get("username"),
+            username=cfg.get("username"),
             visible_skill_names=visible_skill_names,
         ),
         state_schema=ThreadState,

@@ -1,0 +1,167 @@
+<#
+.SYNOPSIS
+  Start DeerFlow services on Windows in the background for production use.
+
+.DESCRIPTION
+  Starts LangGraph, Gateway, Frontend (Next.js production), and nginx as
+  background PowerShell processes. Logs and PID files are written under ./logs.
+
+  Run from any directory inside the repository:
+    powershell -ExecutionPolicy Bypass -File .\scripts\start-prod-windows.ps1
+
+  Stop services with:
+    powershell -ExecutionPolicy Bypass -File .\scripts\stop-prod-windows.ps1
+#>
+
+[CmdletBinding()]
+param(
+  [switch]$SkipFrontendBuild,
+  [Nullable[bool]]$AllowBlocking = $null,
+  [string]$LangGraphLogLevel = $env:LANGGRAPH_LOG_LEVEL,
+  [int]$LangGraphJobsPerWorker = 10,
+  [int]$StartupTimeoutSeconds = 120
+)
+
+$ErrorActionPreference = "Stop"
+
+function Get-RepoRoot {
+  $scriptDir = Split-Path -Parent $PSCommandPath
+  return (Resolve-Path (Join-Path $scriptDir "..")).Path
+}
+
+function Assert-Command($Name) {
+  if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+    throw "Required command '$Name' was not found in PATH."
+  }
+}
+
+function Ensure-Config($RepoRoot) {
+  $configPath = if ($env:DEER_FLOW_CONFIG_PATH) { $env:DEER_FLOW_CONFIG_PATH } else { Join-Path $RepoRoot "config.yaml" }
+  if (-not (Test-Path $configPath)) {
+    throw "Config file not found: $configPath. Create it first, e.g. make config."
+  }
+}
+
+function Ensure-FrontendEnv($RepoRoot) {
+  $envPath = Join-Path $RepoRoot "frontend\.env.production.local"
+  if (-not (Test-Path $envPath)) {
+    throw "Frontend production env file not found: $envPath. Create it with BETTER_AUTH_SECRET and NEXT_PUBLIC_LANGGRAPH_BASE_URL."
+  }
+
+  $content = Get-Content -Path $envPath -Raw
+  if ($content -notmatch "(?m)^\s*BETTER_AUTH_SECRET\s*=\s*\S+") {
+    throw "BETTER_AUTH_SECRET is required in $envPath."
+  }
+  if ($content -notmatch "(?m)^\s*NEXT_PUBLIC_LANGGRAPH_BASE_URL\s*=\s*/api/langgraph-compat\s*$") {
+    throw "NEXT_PUBLIC_LANGGRAPH_BASE_URL=/api/langgraph-compat is required in $envPath."
+  }
+}
+
+function Wait-Port($Port, $Name, $TimeoutSeconds) {
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $client = [System.Net.Sockets.TcpClient]::new()
+      $async = $client.BeginConnect("127.0.0.1", $Port, $null, $null)
+      if ($async.AsyncWaitHandle.WaitOne(1000, $false)) {
+        $client.EndConnect($async)
+        $client.Close()
+        Write-Host "OK $Name started on port $Port"
+        return
+      }
+      $client.Close()
+    } catch {
+      Start-Sleep -Milliseconds 500
+    }
+  }
+  throw "$Name did not listen on port $Port within $TimeoutSeconds seconds. Check logs/$($Name.ToLower()).log."
+}
+
+function Start-DeerFlowProcess($Name, $WorkingDirectory, $Command, $LogPath, $PidPath) {
+  if (Test-Path $LogPath) {
+    Remove-Item $LogPath -Force
+  }
+
+  $escapedWorkDir = $WorkingDirectory.Replace("'", "''")
+  $escapedLog = $LogPath.Replace("'", "''")
+  $wrappedCommand = "Set-Location '$escapedWorkDir'; $Command *> '$escapedLog'"
+  $process = Start-Process -FilePath "powershell.exe" `
+    -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $wrappedCommand) `
+    -WindowStyle Hidden `
+    -PassThru
+
+  Set-Content -Path $PidPath -Value $process.Id -Encoding ASCII
+  Write-Host "Started $Name as process $($process.Id)"
+}
+
+$repoRoot = Get-RepoRoot
+Set-Location $repoRoot
+
+$logsDir = Join-Path $repoRoot "logs"
+New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "temp\client_body_temp") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "temp\proxy_temp") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "temp\fastcgi_temp") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "temp\uwsgi_temp") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "temp\scgi_temp") | Out-Null
+
+Assert-Command uv
+Assert-Command yarn
+Assert-Command nginx
+Ensure-Config $repoRoot
+Ensure-FrontendEnv $repoRoot
+
+if ([string]::IsNullOrWhiteSpace($LangGraphLogLevel)) {
+  $LangGraphLogLevel = "info"
+}
+
+if ($null -eq $AllowBlocking) {
+  $AllowBlocking = $env:LANGGRAPH_ALLOW_BLOCKING -eq "1" -or $env:LANGGRAPH_ALLOW_BLOCKING -eq "true"
+}
+
+Write-Host "Stopping existing DeerFlow processes if any..."
+& (Join-Path $repoRoot "scripts\stop-prod-windows.ps1") -Quiet -ErrorAction SilentlyContinue
+
+if (-not $SkipFrontendBuild) {
+  Write-Host "Building frontend..."
+  Push-Location (Join-Path $repoRoot "frontend")
+  try {
+    yarn build
+  } finally {
+    Pop-Location
+  }
+}
+
+$langgraphArgs = @(
+  "uv run python start_langgraph.py --no-browser --no-reload",
+  "--n-jobs-per-worker $LangGraphJobsPerWorker",
+  "--host 0.0.0.0",
+  "--server-log-level $LangGraphLogLevel"
+)
+if ($AllowBlocking) {
+  $langgraphArgs += "--allow-blocking"
+}
+$langgraphCmd = "`$env:NO_COLOR='1'; `$env:PYTHONPATH='.'; " + ($langgraphArgs -join " ")
+$gatewayCmd = "`$env:PYTHONPATH='.'; uv run python start_gateway.py"
+$frontendCmd = "yarn start"
+$nginxConf = Join-Path $repoRoot "docker\nginx\nginx.local.conf"
+$nginxCmd = "nginx -g 'daemon off;' -c '$nginxConf' -p '$repoRoot'"
+
+Start-DeerFlowProcess "langgraph" (Join-Path $repoRoot "backend") $langgraphCmd (Join-Path $logsDir "langgraph.log") (Join-Path $logsDir "langgraph.pid")
+Wait-Port 2024 "LangGraph" $StartupTimeoutSeconds
+
+Start-DeerFlowProcess "gateway" (Join-Path $repoRoot "backend") $gatewayCmd (Join-Path $logsDir "gateway.log") (Join-Path $logsDir "gateway.pid")
+Wait-Port 8001 "Gateway" $StartupTimeoutSeconds
+
+Start-DeerFlowProcess "frontend" (Join-Path $repoRoot "frontend") $frontendCmd (Join-Path $logsDir "frontend.log") (Join-Path $logsDir "frontend.pid")
+Wait-Port 3000 "Frontend" $StartupTimeoutSeconds
+
+Start-DeerFlowProcess "nginx" $repoRoot $nginxCmd (Join-Path $logsDir "nginx.log") (Join-Path $logsDir "nginx.pid")
+Wait-Port 2026 "nginx" $StartupTimeoutSeconds
+
+Write-Host ""
+Write-Host "DeerFlow production services are running in background."
+Write-Host "URL:  http://localhost:2026"
+Write-Host "LAN:  http://<WindowsHostIP>:2026"
+Write-Host "Logs: $logsDir"
+Write-Host "Stop: powershell -ExecutionPolicy Bypass -File .\scripts\stop-prod-windows.ps1"

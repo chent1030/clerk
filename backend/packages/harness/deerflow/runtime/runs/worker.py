@@ -19,6 +19,8 @@ import asyncio
 import logging
 from typing import Any, Literal
 
+from langchain_core.runnables.config import var_child_runnable_config
+
 from deerflow.runtime.serialization import serialize
 from deerflow.runtime.stream_bridge import StreamBridge
 
@@ -51,6 +53,7 @@ async def run_agent(
     run_id = record.run_id
     thread_id = record.thread_id
     requested_modes: set[str] = set(stream_modes or ["values"])
+    runnable_config_token = None
 
     # Track whether "events" was requested but skipped
     if "events" in requested_modes:
@@ -89,7 +92,9 @@ async def run_agent(
 
         # Inject runtime context so middlewares can access thread_id
         # (langgraph-cli does this automatically; we must do it manually)
-        runtime = Runtime(context={"thread_id": thread_id}, store=store)
+        runtime_context = dict(config.get("configurable") or {})
+        runtime_context["thread_id"] = thread_id
+        runtime = Runtime(context=runtime_context, store=store)
         # If the caller already set a ``context`` key (LangGraph >= 0.6.0
         # prefers it over ``configurable`` for thread-level data), make
         # sure ``thread_id`` is available there too.
@@ -98,6 +103,7 @@ async def run_agent(
         config.setdefault("configurable", {})["__pregel_runtime"] = runtime
 
         runnable_config = RunnableConfig(**config)
+        runnable_config_token = var_child_runnable_config.set(runnable_config)
         agent = agent_factory(config=runnable_config)
 
         # 4. Attach checkpointer and store
@@ -211,6 +217,8 @@ async def run_agent(
         )
 
     finally:
+        if runnable_config_token is not None:
+            var_child_runnable_config.reset(runnable_config_token)
         await bridge.publish_end(run_id)
         asyncio.create_task(bridge.cleanup(run_id, delay=60))
 

@@ -103,7 +103,7 @@ admin:
     secure: false
   jwt:
     secret_key: deerflow-jwt-secret-change-in-production
-    access_token_expire_minutes: 60
+    access_token_expire_minutes: 720
     refresh_token_expire_days: 7
   initial_super_admin:
     username: admin
