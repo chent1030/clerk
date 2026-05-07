@@ -1,6 +1,7 @@
 import errno
 import ntpath
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -35,6 +36,26 @@ class LocalSandbox(Sandbox):
     def _is_cmd_shell(shell: str) -> bool:
         """Return whether the selected shell is cmd.exe."""
         return LocalSandbox._shell_name(shell) in {"cmd", "cmd.exe"}
+
+    @staticmethod
+    def _normalise_windows_paths_for_posix_shell(command: str) -> str:
+        """Convert Windows paths to a form Git Bash/sh can parse.
+
+        LocalSandbox resolves virtual paths such as ``/mnt/skills`` to host
+        paths before execution. On Windows those paths use backslashes, which
+        POSIX shells treat as escape characters. Forward slashes are accepted
+        by Python and Windows APIs while remaining safe for ``sh -c``.
+        """
+        def replace_match(match: re.Match) -> str:
+            drive = match.group(1)
+            rest = match.group(2).replace("\\", "/")
+            return f"{drive}:/{rest}"
+
+        return re.sub(
+            r"(?<![\w/.-])([A-Za-z]):\\([^\s\"';&|<>()]*)",
+            replace_match,
+            command,
+        )
 
     @staticmethod
     def _find_first_available_shell(candidates: tuple[str, ...]) -> str | None:
@@ -242,6 +263,7 @@ class LocalSandbox(Sandbox):
             elif self._is_cmd_shell(shell):
                 args = [shell, "/c", resolved_command]
             else:
+                resolved_command = self._normalise_windows_paths_for_posix_shell(resolved_command)
                 args = [shell, "-c", resolved_command]
 
             result = subprocess.run(

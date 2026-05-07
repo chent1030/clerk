@@ -137,6 +137,24 @@ def test_execute_command_uses_posix_shell_command_mode_on_windows(monkeypatch):
     ]
 
 
+def test_execute_command_normalises_windows_paths_for_posix_shell(monkeypatch):
+    calls: list[tuple[object, dict]] = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args[0], kwargs))
+        return SimpleNamespace(stdout="ok", stderr="", returncode=0)
+
+    monkeypatch.setattr(local_sandbox.os, "name", "nt")
+    monkeypatch.setattr(LocalSandbox, "_get_shell", staticmethod(lambda: r"C:\Program Files\Git\usr\bin\sh.exe"))
+    monkeypatch.setattr(local_sandbox.subprocess, "run", fake_run)
+
+    command = r'python C:\repo\deer-flow\skills\public\data-analysis\scripts\analyze.py --output-file C:\data\out.csv'
+    output = LocalSandbox("t").execute_command(command)
+
+    assert output == "ok"
+    assert calls[0][0][2] == "python C:/repo/deer-flow/skills/public/data-analysis/scripts/analyze.py --output-file C:/data/out.csv"
+
+
 def test_execute_command_uses_cmd_command_mode_on_windows(monkeypatch):
     calls: list[tuple[object, dict]] = []
 

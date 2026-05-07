@@ -56,7 +56,7 @@ uploads:
   pdf_converter: auto
 sandbox:
   use: deerflow.sandbox.local:LocalSandboxProvider
-  allow_host_bash: false
+  allow_host_bash: true
   bash_output_max_chars: 20000
   read_file_output_max_chars: 50000
   ls_output_max_chars: 20000
