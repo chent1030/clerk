@@ -4,7 +4,8 @@
 
 .DESCRIPTION
   Starts LangGraph, Gateway, Frontend (Next.js production), and nginx as
-  background PowerShell processes. Logs and PID files are written under ./logs.
+  background PowerShell processes. Also starts the admin panel. Logs and PID
+  files are written under ./logs.
 
   Run from any directory inside the repository:
     powershell -ExecutionPolicy Bypass -File .\scripts\start-prod-windows.ps1
@@ -112,6 +113,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "temp\scgi_temp")
 
 Assert-Command uv
 Assert-Command yarn
+Assert-Command pnpm
 Assert-Command nginx
 Ensure-Config $repoRoot
 Ensure-FrontendEnv $repoRoot
@@ -135,6 +137,14 @@ if (-not $SkipFrontendBuild) {
   } finally {
     Pop-Location
   }
+
+  Write-Host "Building admin..."
+  Push-Location (Join-Path $repoRoot "admin")
+  try {
+    pnpm build
+  } finally {
+    Pop-Location
+  }
 }
 
 $langgraphArgs = @(
@@ -149,6 +159,7 @@ if ($AllowBlocking) {
 $langgraphCmd = "`$env:NO_COLOR='1'; `$env:PYTHONPATH='.'; " + ($langgraphArgs -join " ")
 $gatewayCmd = "`$env:PYTHONPATH='.'; uv run python start_gateway.py"
 $frontendCmd = "yarn start"
+$adminCmd = "pnpm preview --host 0.0.0.0 --port 3002"
 $nginxConf = Join-Path $repoRoot "docker\nginx\nginx.local.conf"
 $nginxCmd = "nginx -g 'daemon off;' -c '$nginxConf' -p '$repoRoot'"
 
@@ -163,6 +174,10 @@ Wait-Port 8001 "Gateway" $StartupTimeoutSeconds $gatewayProcess $gatewayLog
 $frontendLog = Join-Path $logsDir "frontend.log"
 $frontendProcess = Start-DeerFlowProcess "frontend" (Join-Path $repoRoot "frontend") $frontendCmd $frontendLog (Join-Path $logsDir "frontend.pid")
 Wait-Port 3000 "Frontend" $StartupTimeoutSeconds $frontendProcess $frontendLog
+
+$adminLog = Join-Path $logsDir "admin.log"
+$adminProcess = Start-DeerFlowProcess "admin" (Join-Path $repoRoot "admin") $adminCmd $adminLog (Join-Path $logsDir "admin.pid")
+Wait-Port 3002 "Admin" $StartupTimeoutSeconds $adminProcess $adminLog
 
 $nginxLog = Join-Path $logsDir "nginx.log"
 $nginxProcess = Start-DeerFlowProcess "nginx" $repoRoot $nginxCmd $nginxLog (Join-Path $logsDir "nginx.pid")

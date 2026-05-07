@@ -12,7 +12,7 @@ $scriptDir = Split-Path -Parent $PSCommandPath
 $repoRoot = (Resolve-Path (Join-Path $scriptDir "..")).Path
 $logsDir = Join-Path $repoRoot "logs"
 
-$services = @("nginx", "frontend", "gateway", "langgraph")
+$services = @("nginx", "admin", "frontend", "gateway", "langgraph")
 foreach ($service in $services) {
   $pidFile = Join-Path $logsDir "$service.pid"
   if (Test-Path $pidFile) {
@@ -35,6 +35,7 @@ $patterns = @(
   "start_gateway.py",
   "uvicorn app.gateway.app:app",
   "next start",
+  "vite preview",
   "nginx.*nginx.local.conf"
 )
 
