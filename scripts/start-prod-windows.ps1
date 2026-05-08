@@ -20,6 +20,7 @@ param(
   [Nullable[bool]]$AllowBlocking = $null,
   [string]$LangGraphLogLevel = $env:LANGGRAPH_LOG_LEVEL,
   [int]$LangGraphJobsPerWorker = 10,
+  [Nullable[bool]]$LangGraphIsolatedLoops = $null,
   [int]$StartupTimeoutSeconds = 120
 )
 
@@ -126,6 +127,14 @@ if ($null -eq $AllowBlocking) {
   $AllowBlocking = $env:LANGGRAPH_ALLOW_BLOCKING -eq "1" -or $env:LANGGRAPH_ALLOW_BLOCKING -eq "true"
 }
 
+if ($null -eq $LangGraphIsolatedLoops) {
+  $LangGraphIsolatedLoops = if ($env:BG_JOB_ISOLATED_LOOPS) {
+    $env:BG_JOB_ISOLATED_LOOPS -eq "1" -or $env:BG_JOB_ISOLATED_LOOPS -eq "true"
+  } else {
+    $true
+  }
+}
+
 Write-Host "Stopping existing DeerFlow processes if any..."
 & (Join-Path $repoRoot "scripts\stop-prod-windows.ps1") -Quiet -ErrorAction SilentlyContinue
 
@@ -153,10 +162,12 @@ $langgraphArgs = @(
   "--host 0.0.0.0",
   "--server-log-level $LangGraphLogLevel"
 )
+$allowBlockingValue = if ($AllowBlocking) { "true" } else { "false" }
+$isolatedLoopsValue = if ($LangGraphIsolatedLoops) { "true" } else { "false" }
 if ($AllowBlocking) {
   $langgraphArgs += "--allow-blocking"
 }
-$langgraphCmd = "`$env:NO_COLOR='1'; `$env:PYTHONPATH='.'; " + ($langgraphArgs -join " ")
+$langgraphCmd = "`$env:NO_COLOR='1'; `$env:PYTHONPATH='.'; `$env:LANGGRAPH_ALLOW_BLOCKING='$allowBlockingValue'; `$env:BG_JOB_ISOLATED_LOOPS='$isolatedLoopsValue'; " + ($langgraphArgs -join " ")
 $gatewayCmd = "`$env:PYTHONPATH='.'; uv run python start_gateway.py"
 $frontendCmd = "yarn start"
 $adminCmd = "pnpm preview --host 0.0.0.0 --port 3002"

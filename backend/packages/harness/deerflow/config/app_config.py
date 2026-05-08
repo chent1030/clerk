@@ -79,7 +79,7 @@ def load_admin_config_from_dict(config_dict: dict) -> None:
 
 def _default_config_candidates() -> tuple[Path, ...]:
     """Return deterministic config.yaml locations without relying on cwd."""
-    backend_dir = Path(__file__).resolve().parents[4]
+    backend_dir = Path(__file__).parents[4]
     repo_root = backend_dir.parent
     return (backend_dir / "config.yaml", repo_root / "config.yaml")
 

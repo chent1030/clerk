@@ -20,7 +20,7 @@ def _validate_username(username: str) -> str:
 
 def _default_local_base_dir() -> Path:
     """Return the repo-local DeerFlow state directory without relying on cwd."""
-    backend_dir = Path(__file__).resolve().parents[4]
+    backend_dir = Path(__file__).parents[4]
     return backend_dir / ".deer-flow"
 
 
