@@ -53,8 +53,8 @@ function Ensure-FrontendEnv($RepoRoot) {
   if ($content -notmatch "(?m)^\s*BETTER_AUTH_SECRET\s*=\s*\S+") {
     throw "BETTER_AUTH_SECRET is required in $envPath."
   }
-  if ($content -notmatch "(?m)^\s*NEXT_PUBLIC_LANGGRAPH_BASE_URL\s*=\s*/api/langgraph-compat\s*$") {
-    throw "NEXT_PUBLIC_LANGGRAPH_BASE_URL=/api/langgraph-compat is required in $envPath."
+  if ($content -notmatch "(?m)^\s*NEXT_PUBLIC_LANGGRAPH_BASE_URL\s*=\s*/api/langgraph\s*$") {
+    throw "NEXT_PUBLIC_LANGGRAPH_BASE_URL=/api/langgraph is required in $envPath for production. Do not use /api/langgraph-compat in production because long-running agent jobs can block Gateway APIs."
   }
 }
 
