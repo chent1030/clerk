@@ -3,12 +3,29 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from contextvars import Token
 
 import asyncpg
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.checkpoint.postgres.base import BasePostgresSaver
 
 from deerflow.db.asyncpg_compat import AsyncPGCursor
+
+try:
+    from blockbuster.blockbuster import blockbuster_skip
+except Exception:  # pragma: no cover - optional dependency outside LangGraph server
+    blockbuster_skip = None
+
+
+def _skip_blockbuster() -> Token | None:
+    if blockbuster_skip is None:
+        return None
+    return blockbuster_skip.set(True)
+
+
+def _reset_blockbuster(token: Token | None) -> None:
+    if blockbuster_skip is not None and token is not None:
+        blockbuster_skip.reset(token)
 
 
 class AsyncPGSaver(AsyncPostgresSaver):
@@ -43,5 +60,9 @@ class AsyncPGSaver(AsyncPostgresSaver):
     @asynccontextmanager
     async def _cursor(self, *, pipeline: bool = False) -> AsyncIterator[AsyncPGCursor]:
         async with self.lock:
-            async with self._pool.acquire() as conn:
-                yield AsyncPGCursor(conn)
+            token = _skip_blockbuster()
+            try:
+                async with self._pool.acquire() as conn:
+                    yield AsyncPGCursor(conn)
+            finally:
+                _reset_blockbuster(token)
