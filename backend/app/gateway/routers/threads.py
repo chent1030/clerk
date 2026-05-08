@@ -112,19 +112,20 @@ class ThreadStateUpdateRequest(BaseModel):
 class HistoryEntry(BaseModel):
     """Single checkpoint history entry."""
 
-    checkpoint_id: str
-    parent_checkpoint_id: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
     values: dict[str, Any] = Field(default_factory=dict)
-    created_at: str | None = None
     next: list[str] = Field(default_factory=list)
+    checkpoint: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+    parent_checkpoint: dict[str, Any] | None = None
+    tasks: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ThreadHistoryRequest(BaseModel):
     """Request body for checkpoint history."""
 
     limit: int = Field(default=10, ge=1, le=100, description="Maximum entries")
-    before: str | None = Field(default=None, description="Cursor for pagination")
+    before: str | dict[str, Any] | None = Field(default=None, description="Cursor for pagination")
 
 
 # ---------------------------------------------------------------------------
@@ -611,7 +612,7 @@ async def get_thread_state(
         values=serialize_channel_values(channel_values),
         next=next_tasks,
         metadata=metadata,
-        checkpoint={"id": checkpoint_id, "ts": str(metadata.get("created_at", ""))},
+        checkpoint={"checkpoint_id": checkpoint_id},
         checkpoint_id=checkpoint_id,
         parent_checkpoint_id=parent_checkpoint_id,
         created_at=str(metadata.get("created_at", "")),
@@ -731,7 +732,13 @@ async def get_thread_history(
 
     config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
     if body.before:
-        config["configurable"]["checkpoint_id"] = body.before
+        if isinstance(body.before, dict):
+            before_configurable = body.before.get("configurable", {})
+            before_checkpoint_id = before_configurable.get("checkpoint_id")
+        else:
+            before_checkpoint_id = body.before
+        if before_checkpoint_id:
+            config["configurable"]["checkpoint_id"] = before_checkpoint_id
 
     entries: list[HistoryEntry] = []
     try:
@@ -751,15 +758,17 @@ async def get_thread_history(
             # Derive next tasks
             tasks_raw = getattr(checkpoint_tuple, "tasks", []) or []
             next_tasks = [t.name for t in tasks_raw if hasattr(t, "name")]
+            tasks = [{"id": getattr(t, "id", ""), "name": getattr(t, "name", "")} for t in tasks_raw]
 
             entries.append(
                 HistoryEntry(
-                    checkpoint_id=checkpoint_id,
-                    parent_checkpoint_id=parent_id,
-                    metadata=metadata,
                     values=serialize_channel_values(channel_values),
-                    created_at=str(metadata.get("created_at", "")),
                     next=next_tasks,
+                    checkpoint={"checkpoint_id": checkpoint_id},
+                    metadata=metadata,
+                    created_at=str(metadata.get("created_at", "")),
+                    parent_checkpoint={"checkpoint_id": parent_id} if parent_id else None,
+                    tasks=tasks,
                 )
             )
     except Exception:

@@ -4,6 +4,7 @@ import { Client as LangGraphClient } from "@langchain/langgraph-sdk/client";
 
 import { getLangGraphBaseURL } from "../config";
 
+import { authFetch } from "./auth-fetch";
 import { sanitizeRunStreamOptions } from "./stream-mode";
 
 function createCompatibleClient(isMock?: boolean): LangGraphClient {
@@ -29,6 +30,30 @@ function createCompatibleClient(isMock?: boolean): LangGraphClient {
       runId,
       sanitizeRunStreamOptions(options),
     )) as typeof client.runs.joinStream;
+
+  if (!isMock) {
+    client.threads.getHistory = (async (threadId, options) => {
+      const response = await authFetch(
+        `/api/threads/${encodeURIComponent(threadId)}/history`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            limit: options?.limit ?? 10,
+            before: options?.before,
+            metadata: options?.metadata,
+            checkpoint: options?.checkpoint,
+          }),
+          signal: options?.signal,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch thread history: ${response.status}`);
+      }
+
+      return response.json();
+    }) as typeof client.threads.getHistory;
+  }
 
   return client;
 }
