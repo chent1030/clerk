@@ -117,6 +117,7 @@ class DeerFlowClient:
         subagent_enabled: bool = False,
         plan_mode: bool = False,
         agent_name: str | None = None,
+        username: str = "local",
         available_skills: set[str] | None = None,
         middlewares: Sequence[AgentMiddleware] | None = None,
     ):
@@ -134,6 +135,7 @@ class DeerFlowClient:
             subagent_enabled: Enable subagent delegation.
             plan_mode: Enable TodoList middleware for plan mode.
             agent_name: Name of the agent to use.
+            username: Memory/profile namespace for this client.
             available_skills: Optional set of skill names to make available. If None (default), all scanned skills are available.
             middlewares: Optional list of custom middlewares to inject into the agent.
         """
@@ -150,6 +152,7 @@ class DeerFlowClient:
         self._subagent_enabled = subagent_enabled
         self._plan_mode = plan_mode
         self._agent_name = agent_name
+        self._username = username
         self._available_skills = set(available_skills) if available_skills is not None else None
         self._middlewares = list(middlewares) if middlewares else []
 
@@ -197,6 +200,7 @@ class DeerFlowClient:
             "thinking_enabled": overrides.get("thinking_enabled", self._thinking_enabled),
             "is_plan_mode": overrides.get("plan_mode", self._plan_mode),
             "subagent_enabled": overrides.get("subagent_enabled", self._subagent_enabled),
+            "username": overrides.get("username", self._username),
         }
         return RunnableConfig(
             configurable=configurable,
@@ -232,6 +236,7 @@ class DeerFlowClient:
                 max_concurrent_subagents=max_concurrent_subagents,
                 agent_name=self._agent_name,
                 available_skills=self._available_skills,
+                username=cfg.get("username"),
             ),
             "state_schema": ThreadState,
         }
@@ -359,7 +364,7 @@ class DeerFlowClient:
         self._ensure_agent(config)
 
         state: dict[str, Any] = {"messages": [HumanMessage(content=message)]}
-        context = {"thread_id": thread_id}
+        context = {"thread_id": thread_id, "username": config.get("configurable", {}).get("username", self._username)}
         if self._agent_name:
             context["agent_name"] = self._agent_name
 

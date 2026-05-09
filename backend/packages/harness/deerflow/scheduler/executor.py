@@ -83,7 +83,7 @@ class TaskExecutor:
                 user.department_id if user else None,
             )
 
-            agent_cfg = load_agent_config(task.agent_name)
+            agent_cfg = load_agent_config(task.agent_name, username=user_name if user else None)
             agent_model = agent_cfg.model if agent_cfg else None
 
             client = get_client(url=self._langgraph_url)
@@ -93,6 +93,7 @@ class TaskExecutor:
             config: dict = {
                 "configurable": {
                     "agent_name": task.agent_name,
+                    "username": user_name,
                     "visible_skills": visible_skills,
                 },
             }

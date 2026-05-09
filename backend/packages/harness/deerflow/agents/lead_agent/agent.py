@@ -285,8 +285,9 @@ def make_lead_agent(config: RunnableConfig):
     max_concurrent_subagents = cfg.get("max_concurrent_subagents", 3)
     is_bootstrap = cfg.get("is_bootstrap", False)
     agent_name = cfg.get("agent_name")
+    username = cfg.get("username")
 
-    agent_config = load_agent_config(agent_name) if not is_bootstrap else None
+    agent_config = load_agent_config(agent_name, username=username) if not is_bootstrap else None
     # Custom agent model or fallback to global/default model resolution
     agent_model_name = agent_config.model if agent_config and agent_config.model else _resolve_model_name()
 
@@ -350,7 +351,7 @@ def make_lead_agent(config: RunnableConfig):
             max_concurrent_subagents=max_concurrent_subagents,
             agent_name=agent_name,
             available_skills=set(agent_config.skills) if agent_config and agent_config.skills is not None else None,
-            username=cfg.get("username"),
+            username=username,
             visible_skill_names=visible_skill_names,
         ),
         state_schema=ThreadState,

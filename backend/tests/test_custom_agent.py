@@ -36,6 +36,21 @@ def _write_agent(base_dir: Path, name: str, config: dict, soul: str = "You are h
     (agent_dir / "SOUL.md").write_text(soul, encoding="utf-8")
 
 
+def _write_user_agent(base_dir: Path, username: str, name: str, config: dict, soul: str = "You are helpful.") -> None:
+    """Write a per-user agent directory with config.yaml and SOUL.md."""
+    agent_dir = base_dir / "users" / username / "agents" / name
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    config_copy = dict(config)
+    if "name" not in config_copy:
+        config_copy["name"] = name
+
+    with open(agent_dir / "config.yaml", "w") as f:
+        yaml.dump(config_copy, f)
+
+    (agent_dir / "SOUL.md").write_text(soul, encoding="utf-8")
+
+
 # ===========================================================================
 # 1. Paths class – agent path methods
 # ===========================================================================
@@ -49,6 +64,10 @@ class TestPaths:
     def test_agent_dir(self, tmp_path):
         paths = _make_paths(tmp_path)
         assert paths.agent_dir("code-reviewer") == tmp_path / "agents" / "code-reviewer"
+
+    def test_user_agent_dir(self, tmp_path):
+        paths = _make_paths(tmp_path)
+        assert paths.user_agent_dir("alice", "code-reviewer") == tmp_path / "users" / "alice" / "agents" / "code-reviewer"
 
     def test_agent_memory_file(self, tmp_path):
         paths = _make_paths(tmp_path)
@@ -121,6 +140,19 @@ class TestLoadAgentConfig:
         assert cfg.name == "code-reviewer"
         assert cfg.description == "Code review agent"
         assert cfg.model == "deepseek-v3"
+
+    def test_load_user_scoped_config(self, tmp_path):
+        _write_user_agent(tmp_path, "alice", "code-reviewer", {"description": "Alice agent"})
+        _write_user_agent(tmp_path, "bob", "code-reviewer", {"description": "Bob agent"})
+
+        with patch("deerflow.config.agents_config.get_paths", return_value=_make_paths(tmp_path)):
+            from deerflow.config.agents_config import load_agent_config
+
+            alice_cfg = load_agent_config("code-reviewer", username="alice")
+            bob_cfg = load_agent_config("code-reviewer", username="bob")
+
+        assert alice_cfg.description == "Alice agent"
+        assert bob_cfg.description == "Bob agent"
 
     def test_load_missing_agent_raises(self, tmp_path):
         with patch("deerflow.config.agents_config.get_paths", return_value=_make_paths(tmp_path)):
@@ -247,6 +279,16 @@ class TestLoadAgentSoul:
 
         assert soul is None
 
+    def test_reads_user_scoped_soul_file(self, tmp_path):
+        _write_user_agent(tmp_path, "alice", "code-reviewer", {"name": "code-reviewer"}, soul="Alice soul")
+        _write_user_agent(tmp_path, "bob", "code-reviewer", {"name": "code-reviewer"}, soul="Bob soul")
+
+        with patch("deerflow.config.agents_config.get_paths", return_value=_make_paths(tmp_path)):
+            from deerflow.config.agents_config import load_agent_soul
+
+            assert load_agent_soul("code-reviewer", username="alice") == "Alice soul"
+            assert load_agent_soul("code-reviewer", username="bob") == "Bob soul"
+
 
 # ===========================================================================
 # 5. list_custom_agents
@@ -317,6 +359,19 @@ class TestListCustomAgents:
         names = [a.name for a in agents]
         assert names == sorted(names)
 
+    def test_lists_only_user_scoped_agents(self, tmp_path):
+        _write_user_agent(tmp_path, "alice", "agent-a", {"name": "agent-a"})
+        _write_user_agent(tmp_path, "bob", "agent-b", {"name": "agent-b"})
+
+        with patch("deerflow.config.agents_config.get_paths", return_value=_make_paths(tmp_path)):
+            from deerflow.config.agents_config import list_custom_agents
+
+            alice_agents = list_custom_agents(username="alice")
+            bob_agents = list_custom_agents(username="bob")
+
+        assert [agent.name for agent in alice_agents] == ["agent-a"]
+        assert [agent.name for agent in bob_agents] == ["agent-b"]
+
 
 # ===========================================================================
 # 7. Memory isolation: _get_memory_file_path
@@ -377,10 +432,33 @@ def _make_test_app(tmp_path: Path):
     """Create a FastAPI app with the agents router, patching paths to tmp_path."""
     from fastapi import FastAPI
 
+    from app.admin.deps import get_current_user
     from app.gateway.routers.agents import router
+
+    class MockUser:
+        username = "testuser"
 
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: MockUser()
+    return app
+
+
+def _make_test_app_for_username(username: str):
+    from fastapi import FastAPI
+
+    from app.admin.deps import get_current_user
+    from app.gateway.routers.agents import router
+
+    class MockUser:
+        pass
+
+    user = MockUser()
+    user.username = username
+
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: user
     return app
 
 
@@ -510,7 +588,7 @@ class TestAgentsAPI:
     def test_create_persists_files_on_disk(self, agent_client, tmp_path):
         agent_client.post("/api/agents", json={"name": "disk-check", "soul": "disk soul"})
 
-        agent_dir = tmp_path / "agents" / "disk-check"
+        agent_dir = tmp_path / "users" / "testuser" / "agents" / "disk-check"
         assert agent_dir.exists()
         assert (agent_dir / "config.yaml").exists()
         assert (agent_dir / "SOUL.md").exists()
@@ -518,11 +596,34 @@ class TestAgentsAPI:
 
     def test_delete_removes_files_from_disk(self, agent_client, tmp_path):
         agent_client.post("/api/agents", json={"name": "remove-me", "soul": "bye"})
-        agent_dir = tmp_path / "agents" / "remove-me"
+        agent_dir = tmp_path / "users" / "testuser" / "agents" / "remove-me"
         assert agent_dir.exists()
 
         agent_client.delete("/api/agents/remove-me")
         assert not agent_dir.exists()
+
+    def test_agents_are_isolated_by_user(self, tmp_path):
+        paths_instance = _make_paths(tmp_path)
+
+        with patch("deerflow.config.agents_config.get_paths", return_value=paths_instance), patch("app.gateway.routers.agents.get_paths", return_value=paths_instance):
+            alice_app = _make_test_app_for_username("alice")
+            bob_app = _make_test_app_for_username("bob")
+
+            with TestClient(alice_app) as alice_client:
+                response = alice_client.post("/api/agents", json={"name": "same-agent", "soul": "alice soul"})
+                assert response.status_code == 201
+
+            with TestClient(bob_app) as bob_client:
+                response = bob_client.get("/api/agents")
+                assert response.status_code == 200
+                assert response.json()["agents"] == []
+
+                response = bob_client.post("/api/agents", json={"name": "same-agent", "soul": "bob soul"})
+                assert response.status_code == 201
+                assert response.json()["soul"] == "bob soul"
+
+            assert (tmp_path / "users" / "alice" / "agents" / "same-agent" / "SOUL.md").read_text() == "alice soul"
+            assert (tmp_path / "users" / "bob" / "agents" / "same-agent" / "SOUL.md").read_text() == "bob soul"
 
 
 # ===========================================================================
@@ -543,7 +644,7 @@ class TestUserProfileAPI:
         assert response.json()["content"] == content
 
         # File should be written to disk
-        user_md = tmp_path / "USER.md"
+        user_md = tmp_path / "profiles" / "testuser" / "USER.md"
         assert user_md.exists()
         assert user_md.read_text(encoding="utf-8") == content
 

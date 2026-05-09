@@ -23,6 +23,7 @@ DEFAULT_LANGGRAPH_URL = "http://localhost:2024"
 DEFAULT_GATEWAY_URL = "http://localhost:8001"
 DEFAULT_ASSISTANT_ID = "lead_agent"
 CUSTOM_AGENT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
+MEMORY_USERNAME_UNSAFE_PATTERN = re.compile(r"[^A-Za-z0-9_\-.@]+")
 
 DEFAULT_RUN_CONFIG: dict[str, Any] = {"recursion_limit": 100}
 DEFAULT_RUN_CONTEXT: dict[str, Any] = {
@@ -48,6 +49,12 @@ INBOUND_FILE_READERS: dict[str, InboundFileReader] = {}
 
 def register_inbound_file_reader(channel_name: str, reader: InboundFileReader) -> None:
     INBOUND_FILE_READERS[channel_name] = reader
+
+
+def _memory_username_for_message(msg: InboundMessage) -> str:
+    raw_username = f"{msg.channel_name}.{msg.user_id or msg.chat_id}"
+    username = MEMORY_USERNAME_UNSAFE_PATTERN.sub("_", raw_username).strip("._-")
+    return username or msg.channel_name
 
 
 async def _read_http_inbound_file(file_info: dict[str, Any], client: httpx.AsyncClient) -> bytes | None:
@@ -545,7 +552,10 @@ class ChannelManager:
             self._default_session.get("context"),
             channel_layer.get("context"),
             user_layer.get("context"),
-            {"thread_id": thread_id},
+            {
+                "thread_id": thread_id,
+                "username": _memory_username_for_message(msg),
+            },
         )
 
         # Custom agents are implemented as lead_agent + agent_name context.

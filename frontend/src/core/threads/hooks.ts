@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 
 import { getAPIClient, authFetch } from "../api";
+import { loadCurrentUsername } from "../auth";
 import { useI18n } from "../i18n/hooks";
 import type { FileInMessage } from "../messages/utils";
 import type { LocalSettings } from "../settings";
@@ -290,7 +291,7 @@ export function useThreadStream({
         authFetch(`/api/threads/${encodeURIComponent(tid)}/audit/record`, {
           method: "POST",
           body: JSON.stringify({ title: state.values?.title ?? null }),
-        }).catch(() => {});
+        }).catch(() => undefined);
       }
     },
   });
@@ -458,6 +459,10 @@ export function useThreadStream({
             status: "uploaded" as const,
           }),
         );
+        const [currentUsername, visibleSkillNames] = await Promise.all([
+          loadCurrentUsername(),
+          loadVisibleSkillNames(),
+        ]);
 
         await thread.submit(
           {
@@ -485,6 +490,9 @@ export function useThreadStream({
             streamResumable: true,
             config: {
               recursion_limit: 1000,
+              configurable: {
+                ...(currentUsername ? { username: currentUsername } : {}),
+              },
             },
             context: {
               ...extraContext,
@@ -502,7 +510,8 @@ export function useThreadStream({
                       ? "low"
                       : undefined),
               thread_id: threadId,
-              visible_skills: await loadVisibleSkillNames(),
+              visible_skills: visibleSkillNames,
+              ...(currentUsername ? { username: currentUsername } : {}),
             },
           },
         );

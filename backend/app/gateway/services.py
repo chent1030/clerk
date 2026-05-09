@@ -385,7 +385,7 @@ async def start_run(
 
     if current_user is not None:
         configurable = config.setdefault("configurable", {})
-        configurable.setdefault("username", current_user.username)
+        configurable["username"] = current_user.username
         try:
             from sqlalchemy.ext.asyncio import async_sessionmaker
 

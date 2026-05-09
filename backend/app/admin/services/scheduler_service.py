@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.models.scheduled_task import ScheduledTask, TaskExecution, TaskStatus
+from app.admin.models.user import User
 from deerflow.config.paths import get_paths
 from deerflow.scheduler.manager import SchedulerManager
 
@@ -37,8 +38,10 @@ async def create_task(
 
     task_id = uuid.uuid4()
     agent_name = f"sched-{str(task_id)[:8]}"
+    user = await db.get(User, user_id)
+    username = user.username if user else str(user_id)
 
-    agent_dir = get_paths().agent_dir(agent_name)
+    agent_dir = get_paths().user_agent_dir(username, agent_name)
     agent_dir.mkdir(parents=True, exist_ok=True)
 
     config_data: dict = {"name": agent_name, "description": agent_description}
@@ -89,7 +92,9 @@ async def update_task(
         task.agent_description = agent_description
     if agent_soul is not None:
         task.agent_soul = agent_soul
-        agent_dir = get_paths().agent_dir(task.agent_name)
+        user = await db.get(User, user_id)
+        username = user.username if user else str(user_id)
+        agent_dir = get_paths().user_agent_dir(username, task.agent_name)
         soul_file = agent_dir / "SOUL.md"
         soul_file.write_text(agent_soul, encoding="utf-8")
     if skill_name is not None:
@@ -115,7 +120,9 @@ async def delete_task(db: AsyncSession, task_id: uuid.UUID, user_id: uuid.UUID) 
 
     SchedulerManager.get_instance().remove_task(str(task.id))
 
-    agent_dir = get_paths().agent_dir(task.agent_name)
+    user = await db.get(User, user_id)
+    username = user.username if user else str(user_id)
+    agent_dir = get_paths().user_agent_dir(username, task.agent_name)
     if agent_dir.exists():
         import platform
 

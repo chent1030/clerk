@@ -3,12 +3,12 @@ log_level: info
 token_usage:
   enabled: false
 models:
-- name: qwen3.6-plus
-  display_name: QWEN3.6 Plus
-  use: langchain_openai:ChatOpenAI
-  model: qwen3.6-plus
-  api_key: $OPENAI_API_KEY
-  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  - name: qwen3.6-plus
+    display_name: QWEN3.6 Plus
+    use: langchain_openai:ChatOpenAI
+    model: qwen3.6-plus
+    api_key: $OPENAI_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 tool_groups:
 - name: web
 - name: file:read

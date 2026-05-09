@@ -142,6 +142,14 @@ class Paths:
         """Directory for a specific agent: `{base_dir}/agents/{name}/`."""
         return self.agents_dir / name.lower()
 
+    def user_agents_dir(self, username: str) -> Path:
+        """Root directory for a user's custom agents: `{base_dir}/users/{username}/agents/`."""
+        return self.base_dir / "users" / _validate_username(username) / "agents"
+
+    def user_agent_dir(self, username: str, name: str) -> Path:
+        """Directory for a user's custom agent: `{base_dir}/users/{username}/agents/{name}/`."""
+        return self.user_agents_dir(username) / name.lower()
+
     def agent_memory_file(self, name: str) -> Path:
         """Per-agent memory file: `{base_dir}/agents/{name}/memory.json`."""
         return self.agent_dir(name) / "memory.json"

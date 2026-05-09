@@ -70,8 +70,8 @@ class FileMemoryStorage(MemoryStorage):
         if username is not None:
             if agent_name is not None:
                 self._validate_agent_name(agent_name)
-                return get_paths().base_dir / "memory" / username / "agents" / agent_name.lower() / "memory.json"
-            return get_paths().base_dir / "memory" / username / "memory.json"
+                return get_paths().user_memory_file(username).parent / "agents" / agent_name.lower() / "memory.json"
+            return get_paths().user_memory_file(username)
         if agent_name is not None:
             self._validate_agent_name(agent_name)
             return get_paths().agent_memory_file(agent_name)

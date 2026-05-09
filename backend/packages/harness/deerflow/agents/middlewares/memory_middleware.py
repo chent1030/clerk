@@ -217,6 +217,9 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
         if not thread_id:
             logger.debug("No thread_id in context, skipping memory update")
             return None
+        if username is None:
+            logger.warning("No username in context for thread %s, skipping memory update to avoid shared global memory", thread_id)
+            return None
 
         # Get messages from state
         messages = state.get("messages", [])

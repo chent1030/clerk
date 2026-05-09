@@ -29,11 +29,22 @@ class AgentConfig(BaseModel):
     skills: list[str] | None = None
 
 
-def load_agent_config(name: str | None) -> AgentConfig | None:
+def _agent_dir(name: str, username: str | None = None):
+    paths = get_paths()
+    return paths.user_agent_dir(username, name) if username else paths.agent_dir(name)
+
+
+def _agents_dir(username: str | None = None):
+    paths = get_paths()
+    return paths.user_agents_dir(username) if username else paths.agents_dir
+
+
+def load_agent_config(name: str | None, username: str | None = None) -> AgentConfig | None:
     """Load the custom or default agent's config from its directory.
 
     Args:
         name: The agent name.
+        username: Optional user namespace for per-user custom agents.
 
     Returns:
         AgentConfig instance.
@@ -48,7 +59,7 @@ def load_agent_config(name: str | None) -> AgentConfig | None:
 
     if not AGENT_NAME_PATTERN.match(name):
         raise ValueError(f"Invalid agent name '{name}'. Must match pattern: {AGENT_NAME_PATTERN.pattern}")
-    agent_dir = get_paths().agent_dir(name)
+    agent_dir = _agent_dir(name, username=username)
     config_file = agent_dir / "config.yaml"
 
     if not agent_dir.exists():
@@ -74,7 +85,7 @@ def load_agent_config(name: str | None) -> AgentConfig | None:
     return AgentConfig(**data)
 
 
-def load_agent_soul(agent_name: str | None) -> str | None:
+def load_agent_soul(agent_name: str | None, username: str | None = None) -> str | None:
     """Read the SOUL.md file for a custom agent, if it exists.
 
     SOUL.md defines the agent's personality, values, and behavioral guardrails.
@@ -82,11 +93,12 @@ def load_agent_soul(agent_name: str | None) -> str | None:
 
     Args:
         agent_name: The name of the agent or None for the default agent.
+        username: Optional user namespace for per-user custom agents.
 
     Returns:
         The SOUL.md content as a string, or None if the file does not exist.
     """
-    agent_dir = get_paths().agent_dir(agent_name) if agent_name else get_paths().base_dir
+    agent_dir = _agent_dir(agent_name, username=username) if agent_name else get_paths().base_dir
     soul_path = agent_dir / SOUL_FILENAME
     if not soul_path.exists():
         return None
@@ -94,13 +106,13 @@ def load_agent_soul(agent_name: str | None) -> str | None:
     return content or None
 
 
-def list_custom_agents() -> list[AgentConfig]:
+def list_custom_agents(username: str | None = None) -> list[AgentConfig]:
     """Scan the agents directory and return all valid custom agents.
 
     Returns:
         List of AgentConfig for each valid agent directory found.
     """
-    agents_dir = get_paths().agents_dir
+    agents_dir = _agents_dir(username=username)
 
     if not agents_dir.exists():
         return []
@@ -117,7 +129,7 @@ def list_custom_agents() -> list[AgentConfig]:
             continue
 
         try:
-            agent_cfg = load_agent_config(entry.name)
+            agent_cfg = load_agent_config(entry.name, username=username)
             agents.append(agent_cfg)
         except Exception as e:
             logger.warning(f"Skipping agent '{entry.name}': {e}")

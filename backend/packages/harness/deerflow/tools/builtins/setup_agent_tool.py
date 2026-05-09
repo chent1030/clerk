@@ -25,10 +25,11 @@ def setup_agent(
     """
 
     agent_name: str | None = runtime.context.get("agent_name") if runtime.context else None
+    username: str | None = runtime.context.get("username") if runtime.context else None
 
     try:
         paths = get_paths()
-        agent_dir = paths.agent_dir(agent_name) if agent_name else paths.base_dir
+        agent_dir = paths.user_agent_dir(username, agent_name) if agent_name and username else paths.agent_dir(agent_name) if agent_name else paths.base_dir
         agent_dir.mkdir(parents=True, exist_ok=True)
 
         if agent_name:

@@ -537,6 +537,9 @@ def _get_memory_context(agent_name: str | None = None, username: str | None = No
         config = get_memory_config()
         if not config.enabled or not config.injection_enabled:
             return ""
+        if username is None:
+            logger.warning("No username in context, skipping memory injection to avoid shared global memory")
+            return ""
 
         memory_data = get_memory_data(agent_name, username=username)
         memory_content = format_memory_for_injection(memory_data, max_tokens=config.max_injection_tokens)
@@ -615,9 +618,9 @@ def get_skills_prompt_section(available_skills: set[str] | None = None, visible_
     return _get_cached_skills_prompt_section(skill_signature, available_key, container_base_path, skill_evolution_section)
 
 
-def get_agent_soul(agent_name: str | None) -> str:
+def get_agent_soul(agent_name: str | None, username: str | None = None) -> str:
     # Append SOUL.md (agent personality) if present
-    soul = load_agent_soul(agent_name)
+    soul = load_agent_soul(agent_name, username=username)
     if soul:
         return f"<soul>\n{soul}\n</soul>\n" if soul else ""
     return ""
@@ -739,7 +742,7 @@ def apply_prompt_template(
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
         agent_name=agent_name or "DeerFlow 2.0",
-        soul=get_agent_soul(agent_name),
+        soul=get_agent_soul(agent_name, username=username),
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,
         memory_context=memory_context,
