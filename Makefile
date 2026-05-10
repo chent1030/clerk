@@ -3,6 +3,8 @@
 .PHONY: help config config-upgrade check install dev dev-pro dev-daemon dev-daemon-pro start start-pro start-daemon start-daemon-pro stop up up-pro down clean docker-init docker-start docker-start-pro docker-stop docker-logs docker-logs-frontend docker-logs-gateway admin-install admin-dev admin-build db-migrate db-seed infra-up infra-down
 
 BASH ?= bash
+UV_DEFAULT_INDEX ?= https://pypi.tuna.tsinghua.edu.cn/simple
+NPM_REGISTRY ?= https://registry.npmmirror.com
 
 # Detect OS for Windows compatibility
 ifeq ($(OS),Windows_NT)
@@ -61,11 +63,11 @@ check:
 # Install all dependencies
 install:
 	@echo "Installing backend dependencies..."
-	@cd backend && uv sync
+	@cd backend && uv sync --frozen --default-index "$(UV_DEFAULT_INDEX)"
 	@echo "Installing frontend dependencies..."
-	@cd frontend && pnpm install
+	@cd frontend && pnpm install --registry "$(NPM_REGISTRY)"
 	@echo "Installing admin panel dependencies..."
-	@cd admin && pnpm install
+	@cd admin && pnpm install --registry "$(NPM_REGISTRY)"
 	@echo "✓ All dependencies installed"
 	@echo ""
 	@echo "=========================================="
@@ -240,7 +242,7 @@ down:
 	@./scripts/deploy.sh down
 
 admin-install:
-	@cd admin && pnpm install
+	@cd admin && pnpm install --registry "$(NPM_REGISTRY)"
 
 admin-dev:
 	@cd admin && pnpm dev
