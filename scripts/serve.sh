@@ -121,7 +121,7 @@ fi
 # Frontend command
 if $DEV_MODE; then
     FRONTEND_CMD="pnpm run dev"
-    ADMIN_CMD="pnpm run dev -- --host 127.0.0.1"
+    ADMIN_CMD="pnpm exec vite --host 127.0.0.1 --port 3002"
 else
     if command -v python3.12 >/dev/null 2>&1; then
         PYTHON_BIN="python3.12"
@@ -134,7 +134,7 @@ else
         exit 1
     fi
     FRONTEND_CMD="env BETTER_AUTH_SECRET=$($PYTHON_BIN -c 'import secrets; print(secrets.token_hex(16))') pnpm run preview"
-    ADMIN_CMD="pnpm run preview -- --host 127.0.0.1 --port 3002"
+    ADMIN_CMD="pnpm exec vite preview --host 127.0.0.1 --port 3002"
 fi
 
 # Extra flags for uvicorn/langgraph
