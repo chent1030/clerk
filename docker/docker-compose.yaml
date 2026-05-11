@@ -30,6 +30,7 @@ services:
       - "${PORT:-2026}:2026"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - ../admin/dist:/usr/share/nginx/admin:ro
     environment:
       - LANGGRAPH_UPSTREAM=${LANGGRAPH_UPSTREAM:-langgraph:2024}
       - LANGGRAPH_REWRITE=${LANGGRAPH_REWRITE:-/}

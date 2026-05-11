@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function isSecureRequest(request: NextRequest): boolean {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0]?.trim() === "https";
+  }
+  return request.nextUrl.protocol === "https:";
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const gatewayUrl =
@@ -18,10 +26,11 @@ export async function POST(request: NextRequest) {
 
   const data = await res.json();
   const response = NextResponse.json(data);
+  const secure = isSecureRequest(request);
 
   response.cookies.set("access_token", data.access_token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 12,
@@ -29,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   response.cookies.set("refresh_token", data.refresh_token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,

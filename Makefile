@@ -3,7 +3,6 @@
 .PHONY: help config config-upgrade check install dev dev-pro dev-daemon dev-daemon-pro start start-pro start-daemon start-daemon-pro stop up up-pro down clean docker-init docker-start docker-start-pro docker-stop docker-logs docker-logs-frontend docker-logs-gateway admin-install admin-dev admin-build db-migrate db-seed infra-up infra-down
 
 BASH ?= bash
-UV_DEFAULT_INDEX ?= https://pypi.tuna.tsinghua.edu.cn/simple
 NPM_REGISTRY ?= https://registry.npmmirror.com
 
 # Detect OS for Windows compatibility
@@ -11,7 +10,7 @@ ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
     PYTHON ?= python
 else
-    PYTHON ?= python3
+    PYTHON ?= $(shell command -v python3.12 2>/dev/null || command -v python3)
 endif
 
 help:
@@ -63,7 +62,7 @@ check:
 # Install all dependencies
 install:
 	@echo "Installing backend dependencies..."
-	@cd backend && uv sync --frozen --default-index "$(UV_DEFAULT_INDEX)"
+	@cd backend && uv sync --frozen
 	@echo "Installing frontend dependencies..."
 	@cd frontend && pnpm install --registry "$(NPM_REGISTRY)"
 	@echo "Installing admin panel dependencies..."
@@ -230,11 +229,11 @@ docker-logs-gateway:
 # ==========================================
 
 # Build and start production services
-up:
+up: admin-build
 	@./scripts/deploy.sh
 
 # Build and start production services in Gateway mode
-up-pro:
+up-pro: admin-build
 	@./scripts/deploy.sh --gateway
 
 # Stop and remove production containers

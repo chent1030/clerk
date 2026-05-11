@@ -75,6 +75,7 @@ stop_all() {
     pkill -f "next dev" 2>/dev/null || true
     pkill -f "next start" 2>/dev/null || true
     pkill -f "next-server" 2>/dev/null || true
+    pkill -f "vite .*3002" 2>/dev/null || true
     nginx -c "$REPO_ROOT/docker/nginx/nginx.local.conf" -p "$REPO_ROOT" -s quit 2>/dev/null || true
     sleep 1
     pkill -9 nginx 2>/dev/null || true
@@ -120,8 +121,11 @@ fi
 # Frontend command
 if $DEV_MODE; then
     FRONTEND_CMD="pnpm run dev"
+    ADMIN_CMD="pnpm run dev -- --host 127.0.0.1"
 else
-    if command -v python3 >/dev/null 2>&1; then
+    if command -v python3.12 >/dev/null 2>&1; then
+        PYTHON_BIN="python3.12"
+    elif command -v python3 >/dev/null 2>&1; then
         PYTHON_BIN="python3"
     elif command -v python >/dev/null 2>&1; then
         PYTHON_BIN="python"
@@ -130,6 +134,7 @@ else
         exit 1
     fi
     FRONTEND_CMD="env BETTER_AUTH_SECRET=$($PYTHON_BIN -c 'import secrets; print(secrets.token_hex(16))') pnpm run preview"
+    ADMIN_CMD="pnpm run preview -- --host 127.0.0.1 --port 3002"
 fi
 
 # Extra flags for uvicorn/langgraph
@@ -167,6 +172,7 @@ if ! $SKIP_INSTALL; then
     echo "Syncing dependencies..."
     (cd backend && uv sync --quiet) || { echo "✗ Backend dependency install failed"; exit 1; }
     (cd frontend && pnpm install --silent) || { echo "✗ Frontend dependency install failed"; exit 1; }
+    (cd admin && pnpm install --silent) || { echo "✗ Admin dependency install failed"; exit 1; }
     echo "✓ Dependencies synced"
 else
     echo "⏩ Skipping dependency install (--skip-install)"
@@ -213,6 +219,7 @@ if ! $GATEWAY_MODE; then
 fi
 echo "    Gateway     → localhost:8001  (REST API$(if $GATEWAY_MODE; then echo " + agent runtime"; fi))"
 echo "    Frontend    → localhost:3000  (Next.js)"
+echo "    Admin       → localhost:3002  (Vite)"
 echo "    Nginx       → localhost:2026  (reverse proxy)"
 echo ""
 
@@ -278,11 +285,25 @@ run_service "Gateway" \
     8001 30
 
 # 3. Frontend
+if ! $DEV_MODE; then
+    echo "Building admin panel..."
+    (cd admin && pnpm run build > ../logs/admin-build.log 2>&1) || {
+        echo "✗ Admin build failed."
+        tail -20 logs/admin-build.log
+        cleanup
+    }
+fi
+
 run_service "Frontend" \
     "cd frontend && $FRONTEND_CMD > ../logs/frontend.log 2>&1" \
     3000 120
 
-# 4. Nginx
+# 4. Admin
+run_service "Admin" \
+    "cd admin && $ADMIN_CMD > ../logs/admin.log 2>&1" \
+    3002 60
+
+# 5. Nginx
 run_service "Nginx" \
     "nginx -g 'daemon off;' -c '$REPO_ROOT/docker/nginx/nginx.local.conf' -p '$REPO_ROOT' > logs/nginx.log 2>&1" \
     2026 10
@@ -305,7 +326,7 @@ else
 fi
 echo "           /api/*              →  Gateway REST API (8001)"
 echo ""
-echo "  📋 Logs: logs/{langgraph,gateway,frontend,nginx}.log"
+echo "  📋 Logs: logs/{langgraph,gateway,frontend,admin,nginx}.log"
 echo ""
 
 if $DAEMON_MODE; then

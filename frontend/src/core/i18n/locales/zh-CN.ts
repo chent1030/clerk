@@ -398,7 +398,8 @@ export const zhCN: Translations = {
       createSkill: "新建技能",
       emptyTitle: "还没有技能",
       emptyDescription:
-        "请在管理端进行技能的提交审核，审核通过后即可在此启用使用。"
+        "请在管理端进行技能的提交审核，审核通过后即可在此启用使用。",
+      emptyButton: "创建第一个技能",
     },
     notification: {
       title: "通知",
