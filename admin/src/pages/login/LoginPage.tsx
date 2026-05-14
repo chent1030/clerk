@@ -24,7 +24,7 @@ export default function LoginPage() {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-      <Card title="DeerFlow 管理端" style={{ width: 400 }}>
+      <Card title="芯工坊调度系统管理端" style={{ width: 400 }}>
         <Form onFinish={onFinish}>
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input prefix={<UserOutlined />} placeholder="用户名" />

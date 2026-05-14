@@ -122,7 +122,7 @@ def create_app() -> FastAPI:
     """
 
     app = FastAPI(
-        title="DeerFlow API Gateway",
+        title="新工坊调度系统 API Gateway",
         description="""
 ## DeerFlow API Gateway
 
@@ -174,7 +174,7 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
             },
             {
                 "name": "threads",
-                "description": "Manage DeerFlow thread-local filesystem data",
+                "description": "Manage 新工坊调度系统 thread-local filesystem data",
             },
             {
                 "name": "agents",

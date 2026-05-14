@@ -84,7 +84,7 @@ export default function AdminLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
         <div style={{ height: 32, margin: 16, color: 'white', fontSize: collapsed ? 14 : 18, fontWeight: 'bold', textAlign: 'center' }}>
-          {collapsed ? 'DF' : 'DeerFlow 管理端'}
+          {collapsed ? '芯' : '芯工坊调度系统管理端'}
         </div>
         <Menu
           theme="dark"

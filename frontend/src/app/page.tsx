@@ -37,7 +37,7 @@ export default function LoginPage() {
     <div className="min-h-screen w-full bg-[#0a0a0a] flex items-center justify-center">
       <div className="w-full max-w-sm px-6">
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">DeerFlow</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">新工坊调度系统</h1>
           <p className="text-sm text-neutral-400">AI 超级智能体框架</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">

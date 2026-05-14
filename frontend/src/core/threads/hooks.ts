@@ -490,9 +490,6 @@ export function useThreadStream({
             streamResumable: true,
             config: {
               recursion_limit: 1000,
-              configurable: {
-                ...(currentUsername ? { username: currentUsername } : {}),
-              },
             },
             context: {
               ...extraContext,

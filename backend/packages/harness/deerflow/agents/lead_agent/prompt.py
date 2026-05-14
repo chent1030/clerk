@@ -447,7 +447,7 @@ Recent breakthroughs in language models have also accelerated progress
 ```markdown
 ## Executive Summary
 
-DeerFlow is an open-source AI agent framework that gained significant traction in early 2026
+新工坊调度系统 is an open-source AI agent framework that gained significant traction in early 2026
 [citation:GitHub Repository](https://github.com/bytedance/deer-flow). The project focuses on
 providing a production-ready agent system with sandbox execution and memory management
 [citation:DeerFlow Documentation](https://deer-flow.dev/docs).
@@ -741,7 +741,7 @@ def apply_prompt_template(
 
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
-        agent_name=agent_name or "DeerFlow 2.0",
+        agent_name=agent_name or "芯工坊调度系统",
         soul=get_agent_soul(agent_name, username=username),
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,

@@ -52,7 +52,7 @@ def _get_default_assistant() -> AssistantResponse:
         name="lead_agent",
         config={},
         metadata={"created_by": "system"},
-        description="DeerFlow lead agent",
+        description="芯工坊调度系统 lead agent",
         created_at=now,
         updated_at=now,
         version=1,
